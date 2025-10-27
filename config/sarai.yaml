@@ -1,0 +1,300 @@
+# SARAi v2.3 - Configuración Central
+# Hardware: CPU-only, 16GB RAM (12GB usables)
+# NEW v2.3: Prefetching + GGUF Context-Aware + Fast-Cache
+
+runtime:
+  backend: "cpu"  # "cpu" (GGUF) o "gpu" (4-bit) cuando migres
+  cpu_model_format: "gguf"
+  gpu_model_format: "4bit"
+  max_concurrent_llms: 2  # NUNCA más de 2 (SOLAR + LFM2)
+  n_threads: 6  # os.cpu_count() - 2, deja núcleos libres (NEW v2.3)
+
+memory:
+  max_ram_gb: 12  # 4GB reservados para sistema
+  model_ttl_seconds: 45  # Auto-descarga tras 45s (aumentado para prefetch)
+  enable_swap: false  # NO usar swap, causa freezes
+  use_mmap: true  # Mapeo de memoria para GGUF (NEW v2.3)
+  use_mlock: false  # CRÍTICO: true puede causar OOM (NEW v2.3)
+
+models:
+  # Expert Tier: Razonamiento técnico profundo
+  # NEW v2.3: Se carga con n_ctx variable (expert_short=512, expert_long=2048)
+  expert:
+    name: "SOLAR-10.7B-Instruct-v1.0"
+    repo_id: "upstage/SOLAR-10.7B-Instruct-v1.0"
+    gguf_file: "SOLAR-10.7B-Instruct-v1.0-Q4_K_M.gguf"
+    max_memory_mb: 6144  # ~6GB (para n_ctx=2048)
+    cache_dir: "./models/cache/solar"
+    context_length: 2048  # Default (expert_long), expert_short usa 512
+    temperature: 0.7
+    top_p: 0.9
+    max_tokens: 1024
+    
+  # Tiny Tier: Soft-skills y modulación
+  tiny:
+    name: "LFM2-1.2B"
+    repo_id: "LiquidAI/LFM2-1.2B"
+    gguf_file: "LFM2-1.2B-Q4_K_M.gguf"
+    max_memory_mb: 700
+    cache_dir: "./models/cache/lfm2"
+    context_length: 2048
+    temperature: 0.8
+    top_p: 0.95
+    max_tokens: 512
+    
+  # Embeddings: SIEMPRE en memoria
+  embeddings:
+    name: "EmbeddingGemma-300M"
+    repo_id: "google/embeddinggemma-300m-qat-q4_0-unquantized"
+    max_memory_mb: 150
+    cache_dir: "./models/cache/embeddings"
+    embedding_dim: 2048
+    load_on_startup: true  # CRÍTICO: nunca descargar
+    
+  # Multimodal: Audio/visión (carga condicional estricta)
+  qwen_omni:
+    name: "Qwen2.5-Omni-7B"
+    repo_id: "Qwen/Qwen2.5-Omni-7B"
+    gguf_file: "Qwen2.5-Omni-7B-Q4_K_M.gguf"
+    max_memory_mb: 4096
+    cache_dir: "./models/cache/qwen"
+    context_length: 2048
+    load_on_startup: false  # Solo si detecta audio/imagen
+
+# TRM-Router: Clasificador de intenciones
+trm:
+  base_model_path: "models/trm_base/trm_classifier.pt"
+  skills_dir: "models/soft_skills"
+  d_model: 256
+  d_latent: 256
+  h_cycles: 3  # Ciclos alto nivel
+  l_cycles: 4  # Iteraciones por ciclo
+  projection_dim: 256  # 2048 (embedding) → 256
+
+# NEW v2.3: TRM-Mini para prefetching
+trm_mini:
+  model_path: "models/trm_mini/trm_mini.pt"
+  d_model: 128  # Reducido vs TRM-Router (256 → 128)
+  K_cycles: 2  # Reducido vs TRM-Router (3 → 2)
+  hard_threshold: 0.65  # Threshold para prefetch de expert
+  soft_threshold: 0.65  # Threshold para prefetch de tiny
+
+# NEW v2.3: Prefetcher proactivo
+prefetcher:
+  enabled: true
+  debounce_delay: 0.3  # 300ms sin input antes de clasificar
+  min_input_length: 10  # Ignorar inputs muy cortos
+
+# MCP: Meta Control Plane
+mcp:
+  state_path: "state/mcp_state.pkl"
+  phase_1_threshold: 100    # Feedbacks para pasar a MLP
+  phase_2_threshold: 2000   # Feedbacks para pasar a Transformer
+  alpha_threshold_hard: 0.9  # α > 0.9 → solo SOLAR
+  beta_threshold_soft: 0.9   # β > 0.9 → solo LFM2
+  default_alpha: 0.6
+  default_beta: 0.4
+  
+  # NEW v2.3: Fast-cache semántico
+  cache_enabled: true
+  cache_ttl: 60  # Segundos
+  cache_quant_levels: 32  # Vector Quantization (5 bits)
+
+# Feedback implícito
+feedback:
+  log_path: "logs/feedback_log.jsonl"
+  async_processing: true  # Calcula embeddings en background
+  timeout_seconds: 30  # Espera input_{t+1} por 30s
+  
+  # Umbrales de similitud semántica
+  reformulation_threshold: 0.85  # input_t vs input_{t+1}
+  confirmation_threshold: 0.7    # response vs input_{t+1}
+  
+  # Pesos de feedback
+  negative_weight: -0.8  # Reformulación
+  positive_weight: 0.9   # Confirmación
+  neutral_weight: -0.3   # Timeout
+
+# LangGraph: Orquestación
+graph:
+  state_schema:
+    - input
+    - hard
+    - soft
+    - alpha
+    - beta
+    - agent_used
+    - hard_response
+    - response
+    - feedback
+  
+  checkpointer: "state/graph_checkpoints.pkl"
+  max_iterations: 10
+
+# Skills modulares (soft-skills + web_query v2.10)
+skills:
+  enabled:
+    - empathy
+    - creativity
+    - web_query  # NEW v2.10
+  
+  empathy:
+    trm_path: "models/soft_skills/empathy/trm.pt"
+    threshold: 0.6
+  
+  creativity:
+    trm_path: "models/soft_skills/creativity/trm.pt"
+    threshold: 0.5
+  
+  # NEW v2.10: Skill RAG
+  web_query:
+    threshold: 0.7  # Activar solo si TRM-Router muy confiado
+    priority: "normal"  # Nunca "critical" (respeta Fast Lane)
+
+# NEW v2.10: Configuración RAG (Retrieval-Augmented Generation)
+rag:
+  enabled: true
+  searxng_url: "http://localhost:8888"  # SearXNG local (docker)
+  cache_dir: "state/web_cache"
+  cache_ttl: 3600  # 1 hora (general)
+  cache_ttl_time_sensitive: 300  # 5 minutos (clima, noticias, etc.)
+  max_snippets: 5  # Limitar contexto LLM
+  search_timeout: 10  # Timeout por búsqueda (segundos)
+  
+  # Auditoría web
+  web_logs_dir: "logs"  # logs/web_queries_YYYY-MM-DD.jsonl
+  enable_anomaly_detection: true
+  webhook_url: ""  # Opcional: Slack/Discord para alertas
+  
+  # Síntesis LLM
+  synthesis_max_tokens: 512
+  synthesis_temperature: 0.3  # Bajo para síntesis factual
+  synthesis_model_short_threshold: 1500  # chars de prompt
+
+# Logging
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  file: "logs/sarai.log"
+  max_bytes: 10485760  # 10MB
+  backup_count: 5
+
+# Testing
+testing:
+  max_ram_tolerance_gb: 12.5  # Permite 0.5GB overhead
+  test_cases_path: "tests/fixtures/test_cases.json"
+
+# ============================================================================
+# NEW v2.11: Motor de Voz "Omni-Sentinel"
+# ============================================================================
+audio_engine:
+  # Activación del motor de voz (omni3b o disabled)
+  engine: "omni3b"  # Valores: "omni3b", "disabled"
+  
+  # Modelo ONNX
+  model_path: "models/qwen2.5-omni-3B-es-q4.onnx"
+  model_ram_mb: 2100  # ~2.1 GB en RAM
+  
+  # Configuración de audio
+  sample_rate: 22050  # Hz
+  audio_chunk_ms: 240  # Chunk mínimo para RT
+  
+  # Latencia target
+  target_latency_ms: 250  # P50 objetivo
+  
+  # API REST
+  port: 8001
+  host: "0.0.0.0"
+  
+  # Logs HMAC
+  logs_dir: "logs/audio"
+  enable_hmac: true
+  
+  # Sentinel responses (voz)
+  sentinel_responses:
+    safe_mode:
+      text: "Lo siento, SARAi está en modo seguro."
+      emotion: "neutral"
+      pitch_offset: 0.0
+    
+    model_load_failed:
+      text: "No pude cargar el modelo de voz."
+      emotion: "concerned"
+      pitch_offset: -1.0
+
+# ============================================================================
+# NEW v2.11: Skills de Infraestructura
+# ============================================================================
+skills_infra:
+  # Home Operations (Home Assistant)
+  home_ops:
+    enabled: true
+    home_assistant_url: "http://192.168.1.100:8123"  # URL local de HA
+    home_assistant_token: ""  # Long-lived access token (configurar en .env)
+    timeout: 10  # segundos
+    
+    # Comandos críticos (requieren dry-run obligatorio)
+    critical_commands:
+      - "climate.set_temperature"
+      - "lock.unlock"
+      - "alarm_control_panel.disarm"
+    
+    # Auditoría
+    logs_dir: "logs/skills/home_ops"
+    enable_hmac: true
+    
+    # Sandbox
+    use_firejail: true
+    dry_run_by_default: true  # Seguridad primero
+  
+  # Network Diagnostics
+  network_diag:
+    enabled: true
+    allowed_commands:
+      - "ping"
+      - "traceroute"
+      - "speedtest"
+    
+    # Límites de seguridad
+    max_ping_count: 5
+    max_traceroute_hops: 15
+    timeout: 30  # segundos
+    
+    # Auditoría
+    logs_dir: "logs/skills/network_diag"
+    enable_hmac: true
+    
+    # Sandbox
+    use_firejail: true
+
+# ============================================================================
+# NEW v2.11: Seguridad y Auditoría
+# ============================================================================
+security:
+  # Logs inmutables con chattr +a
+  enable_chattr: true  # Requiere permisos root
+  chattr_directories:
+    - "logs/audio"
+    - "logs/skills"
+    - "logs/web_queries"
+  
+  # HMAC secret (configurar en .env)
+  hmac_secret_env: "SARAI_HMAC_SECRET"
+  
+  # Cron de verificación de integridad
+  integrity_check:
+    enabled: true
+    interval_hours: 1  # Cada hora
+    alert_webhook: ""  # Slack/Discord (opcional)
+  
+  # Safe Mode triggers adicionales
+  safe_mode_triggers:
+    - "hmac_verification_failed"
+    - "audio_log_corruption"
+    - "home_ops_unauthorized_access"
+    - "network_diag_suspicious_activity"
+  
+  # Contenedores read-only
+  docker:
+    read_only: true
+    volumes_explicit: true
+    network_internal: true

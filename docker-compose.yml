@@ -1,0 +1,13 @@
+# docker-compose.yml - SARAi v2.11 Base Configuration
+# Servicios modulares para SARAi
+
+# Volúmenes persistentes
+volumes:
+  searxng_data:
+    driver: local
+
+# Red interna aislada
+networks:
+  sarai_internal:
+    driver: bridge
+    internal: false  # Permitir acceso externo para desarrollo

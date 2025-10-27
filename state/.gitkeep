@@ -1,0 +1,5 @@
+# Estado persistente del MCP
+# Este directorio almacena el estado del Meta Control Plane entre sesiones
+# NO eliminar archivos .pkl a menos que quieras resetear el aprendizaje
+
+.gitkeep

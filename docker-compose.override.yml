@@ -1,0 +1,175 @@
+# docker-compose.override.yml - SARAi v2.11 "Omni-Sentinel"
+#
+# Añade servicios modulares sin modificar docker-compose.yml principal:
+#   - omni_pipeline: Motor de voz (Qwen2.5-Omni-3B-q4)
+#   - searxng: Motor de búsqueda web (v2.10)
+#   - home_assistant_proxy: Proxy seguro para Home Assistant (v2.11)
+#
+# Activación:
+#   1. Copiar .env.example a .env
+#   2. Configurar AUDIO_ENGINE=omni3b
+#   3. docker-compose up -d
+#
+# Filosofía v2.11:
+#   - Contenedores read-only (--read-only)
+#   - Volúmenes explícitos (solo lo necesario)
+#   - Red interna aislada (no acceso externo)
+#   - Logs auditables (HMAC firmados)
+
+services:
+  # ==========================================================================
+  # Motor de Voz Omni-Sentinel
+  # ==========================================================================
+  omni_pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile.omni
+    image: sarai-omni-engine:v2.11
+    container_name: sarai-omni-engine
+    
+    # 🔒 Seguridad: contenedor read-only
+    read_only: true
+    
+    # 🛡️ HARDENING v2.11 (Ajuste C - No Negociable)
+    security_opt:
+      - no-new-privileges:true  # Impide sudo/setuid dentro del contenedor
+    cap_drop:
+      - ALL  # Renuncia a todas las capabilities de Linux
+    
+    # Volúmenes explícitos (mínimos)
+    volumes:
+      # Modelos ONNX (read-only)
+      - ./models:/app/models:ro
+      
+      # Logs de audio (read-write, HMAC firmados)
+      - ./logs/audio:/app/logs/audio:rw
+    
+    # Tmp para audio temporal (tmpfs en RAM, no persiste)
+    tmpfs:
+      - /tmp:size=512M,mode=1777
+    
+    # Acceso a hardware de audio
+    devices:
+      - /dev/snd:/dev/snd  # Tarjeta de sonido
+    
+    # Variables de entorno
+    environment:
+      - OMNI_MODEL_PATH=/app/models/qwen2.5-omni-3B-es-q4.onnx
+      - OMNI_PORT=8001
+      - SARAI_HMAC_SECRET=${SARAI_HMAC_SECRET:-sarai-v2.11-omni-sentinel}
+      - PYTHONUNBUFFERED=1
+    
+    # Puertos (solo accesible desde red interna)
+    expose:
+      - "8001"
+    
+    # Red interna (aislada)
+    networks:
+      - sarai_internal
+    
+    # Healthcheck (liveness probe)
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    
+    # Recursos (límites conservadores)
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'        # Max 4 cores
+          memory: 4096M      # 4GB (2.1GB modelo + 1.9GB overhead)
+        reservations:
+          cpus: '2.0'        # Min 2 cores
+          memory: 2048M      # 2GB mínimo
+    
+    # Restart policy
+    restart: unless-stopped
+  
+  # ==========================================================================
+  # SearXNG (Motor de Búsqueda Web) - v2.10
+  # ==========================================================================
+  searxng:
+    image: searxng/searxng:latest
+    container_name: sarai-searxng
+    
+    read_only: true
+    
+    # 🛡️ HARDENING v2.11 (Ajuste C)
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    
+    volumes:
+      - ./config/searxng:/etc/searxng:ro
+      - searxng_data:/var/lib/searxng:rw
+    
+    tmpfs:
+      - /tmp:size=256M,mode=1777
+    
+    # Puertos para desarrollo (comentar en producción)
+    ports:
+      - "8888:8080"  # Mapeo localhost:8888 → container:8080
+    
+    expose:
+      - "8080"
+    
+    networks:
+      - sarai_internal
+    
+    environment:
+      - SEARXNG_BASE_URL=http://searxng:8080/
+    
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    
+    restart: unless-stopped
+  
+  # ==========================================================================
+  # Home Assistant Proxy (Opcional - v2.11)
+  # ==========================================================================
+  # Descomenta si tienes Home Assistant corriendo localmente
+  # home_assistant_proxy:
+  #   image: nginx:alpine
+  #   container_name: sarai-ha-proxy
+  #   
+  #   read_only: true
+  #   
+  #   volumes:
+  #     - ./config/nginx/ha-proxy.conf:/etc/nginx/nginx.conf:ro
+  #     - /tmp
+  #   
+  #   expose:
+  #     - "8123"
+  #   
+  #   networks:
+  #     - sarai_internal
+  #   
+  #   environment:
+  #     - HOME_ASSISTANT_URL=${HOME_ASSISTANT_URL:-http://192.168.1.100:8123}
+  #   
+  #   restart: unless-stopped
+
+# ============================================================================
+# Redes
+# ============================================================================
+networks:
+  sarai_internal:
+    driver: bridge
+    internal: false  # � Desarrollo: permitir acceso externo (cambiar a true en producción)
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+# ============================================================================
+# Volúmenes
+# ============================================================================
+volumes:
+  searxng_data:
+    driver: local

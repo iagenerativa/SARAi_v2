@@ -1,0 +1,19 @@
+# Golden Queries - SARAi v2.8
+# Casos de prueba verificados manualmente para validación de MCP
+# Formato: {"input": "...", "expected": "hard|soft", "context": "..."}
+
+{"input": "Cómo configuro SSH en Ubuntu 22.04", "expected": "hard", "context": "Tarea técnica pura, requiere SOLAR"}
+{"input": "Me siento muy frustrado con mi trabajo últimamente", "expected": "soft", "context": "Necesidad emocional, requiere LFM2"}
+{"input": "Explícame las clases en Python como si tuviera 10 años", "expected": "hard", "context": "Educativo técnico pero tono amigable, híbrido"}
+{"input": "SELECT * FROM users WHERE created_at > NOW() - INTERVAL 30 DAY", "expected": "hard", "context": "SQL query, definitivamente hard + skill SQL"}
+{"input": "Estoy preocupado por mi futuro profesional", "expected": "soft", "context": "Preocupación emocional, soft puro"}
+{"input": "¿Cuál es la complejidad de QuickSort?", "expected": "hard", "context": "Pregunta algorítmica, hard puro"}
+{"input": "Necesito que me escuches sin juzgarme", "expected": "soft", "context": "Petición emocional explícita"}
+{"input": "Implementa un servidor HTTP en Rust", "expected": "hard", "context": "Tarea de código, hard + skill code"}
+{"input": "Calcula la integral de x^2 * e^x", "expected": "hard", "context": "Matemáticas, hard + skill math"}
+{"input": "Escribe un poema sobre la melancolía del otoño", "expected": "soft", "context": "Creatividad, soft + skill creative"}
+{"input": "¿Qué es un deadlock en programación concurrente?", "expected": "hard", "context": "Concepto técnico de CS"}
+{"input": "Me da miedo empezar proyectos nuevos", "expected": "soft", "context": "Miedo/inseguridad, soft"}
+{"input": "Debug este error: NullPointerException in line 42", "expected": "hard", "context": "Debugging técnico"}
+{"input": "Ayúdame a procesar la pérdida de un ser querido", "expected": "soft", "context": "Duelo, extremadamente soft"}
+{"input": "¿Cómo funciona el algoritmo de Dijkstra?", "expected": "hard", "context": "Algoritmo de grafos, hard puro"}

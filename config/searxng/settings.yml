@@ -1,0 +1,26 @@
+# SearXNG Minimal Config for SARAi v2.10
+# Solo DuckDuckGo (más confiable que config completa)
+
+use_default_settings:
+  engines:
+    keep_only:
+      - duckduckgo
+      - duckduckgo images
+      - wikipedia
+
+general:
+  instance_name: "SARAi Local Search"
+  
+search:
+  safe_search: 0
+  default_lang: "es"
+  formats:
+    - html
+    - json
+
+server:
+  port: 8080
+  bind_address: "0.0.0.0"
+  secret_key: "sarai-v2-searxng-secret"
+  limiter: false
+  image_proxy: false

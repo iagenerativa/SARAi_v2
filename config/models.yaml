@@ -1,0 +1,96 @@
+# Configuración de modelos para SARAi v2
+# Hardware: CPU-only, 16GB RAM
+# Todos los modelos usan cuantización 4-bit para minimizar uso de RAM
+
+models:
+  # Expert Tier: Razonamiento técnico profundo
+  expert:
+    name: "SOLAR-10.7B-Instruct-v1.0"
+    source: "upstage/SOLAR-10.7B-Instruct-v1.0"
+    quantization: "4bit"
+    max_memory_mb: 6144  # ~6GB
+    device: "cpu"
+    load_on_startup: false  # Cargar bajo demanda
+    cache_dir: "./models/cache/solar"
+    context_length: 4096
+    temperature: 0.7
+    top_p: 0.9
+    
+  # Tiny Tier: Respuestas rápidas y soft-skills
+  tiny:
+    name: "LFM2-1.2B"
+    source: "LiquidAI/LFM2-1.2B"
+    quantization: "4bit"
+    max_memory_mb: 700
+    device: "cpu"
+    load_on_startup: false  # Cargar bajo demanda
+    cache_dir: "./models/cache/lfm2"
+    context_length: 2048
+    temperature: 0.8
+    top_p: 0.95
+    
+  # Embeddings: Siempre en memoria
+  embeddings:
+    name: "EmbeddingGemma-300M"
+    source: "google/embeddinggemma-300m-qat-q4_0-unquantized"
+    quantization: "4bit"
+    max_memory_mb: 150
+    device: "cpu"
+    load_on_startup: true  # CRÍTICO: siempre disponible
+    cache_dir: "./models/cache/embeddings"
+    embedding_dim: 768  # REAL: EmbeddingGemma produce 768-D, no 2048-D
+    
+  # Multimodal: Audio y visión (carga condicional)
+  multimodal:
+    name: "Qwen2.5-Omni-7B"
+    source: "Qwen/Qwen2.5-Omni-7B"
+    quantization: "4bit"
+    max_memory_mb: 4096
+    device: "cpu"
+    load_on_startup: false  # Solo si se detecta input multimodal
+    cache_dir: "./models/cache/qwen"
+    supports:
+      - audio
+      - vision
+      - text
+    context_length: 8192
+    
+  # TRM-Classifier: Clasificador dual hard/soft
+  trm_classifier:
+    name: "TRM-Dual-7M"
+    architecture: "trm"
+    params: 7000000  # 7M
+    d_model: 256
+    d_latent: 256
+    H_cycles: 3  # Ciclos de alto nivel
+    L_cycles: 4  # Iteraciones por ciclo
+    checkpoint_path: "./models/trm_classifier/checkpoint.pth"
+    device: "cpu"
+    load_on_startup: true  # Siempre en memoria
+    max_memory_mb: 50
+
+# Configuración del MCP (Meta Control Plane)
+mcp:
+  mode: "rules"  # "rules" o "learned" (después de 100 interacciones)
+  feedback_buffer_size: 100
+  alpha_beta_sum_tolerance: 0.01
+  checkpoint_path: "./models/mcp/checkpoint.pth"
+  training:
+    min_samples: 100
+    learning_rate: 0.001
+    batch_size: 32
+    
+# Límites de memoria
+memory:
+  total_ram_mb: 16384  # 16GB
+  reserved_for_system_mb: 4096  # 4GB reserva
+  max_concurrent_llms: 2  # Nunca más de 2 LLMs en RAM
+  unload_timeout_seconds: 60  # Descargar modelos no usados después de 60s
+
+# Rutas
+paths:
+  logs_dir: "./logs"
+  feedback_log: "./logs/feedback_log.jsonl"
+  models_cache: "./models/cache"
+  checkpoints: "./models/checkpoints"
+  datasets: "./data"

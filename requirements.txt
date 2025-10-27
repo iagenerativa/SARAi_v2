@@ -1,0 +1,46 @@
+# SARAi v2.2 - Requisitos de Python
+# Sistema optimizado para CPU-only, 16GB RAM
+# Backend: GGUF (llama-cpp-python) para máxima eficiencia en CPU
+
+# Core
+torch>=2.0.0
+transformers>=4.35.0
+accelerate>=0.25.0
+safetensors>=0.4.0
+
+# CRÍTICO: Backend de inferencia CPU
+llama-cpp-python>=0.2.20  # Para modelos GGUF (10x más rápido en CPU)
+
+# Opcional: GPU (cuando migres)
+# bitsandbytes>=0.41.0  # Descomenta para cuantización 4-bit en GPU
+
+# LangChain ecosystem
+langchain>=0.1.0
+langchain-core>=0.1.0
+langgraph>=0.0.40
+
+# HuggingFace
+huggingface-hub>=0.19.0
+sentencepiece>=0.1.99  # Para tokenizadores
+
+# Configuración
+pyyaml>=6.0
+python-dotenv>=1.0.0
+
+# Utilidades
+numpy>=1.24.0
+tqdm>=4.66.0
+diskcache>=5.6.0  # Para web_cache persistente (v2.10)
+requests>=2.31.0  # Para SearXNG (v2.10)
+
+# Testing (opcional)
+pytest>=7.4.0
+pytest-cov>=4.1.0
+psutil>=5.9.0  # Para monitoreo de RAM
+
+# Nota: Archivos GGUF requeridos (descargar con huggingface-cli):
+# - SOLAR-10.7B-Instruct-v1.0-Q4_K_M.gguf (~6GB)
+# - LFM2-1.2B-Q4_K_M.gguf (~700MB)
+# - Qwen2.5-Omni-7B-Q4_K_M.gguf (~4GB)
+# - google/embeddinggemma-300m-qat-q4_0-unquantized (~150MB)
+

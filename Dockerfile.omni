@@ -1,0 +1,89 @@
+# Dockerfile.omni - Motor de Voz "Omni-Sentinel" v2.11
+# 
+# Imagen read-only para el pipeline de voz con Qwen2.5-Omni-3B-q4
+# 
+# Build multi-arch:
+#   docker buildx build --platform linux/amd64,linux/arm64 \
+#     -f Dockerfile.omni -t sarai-omni-engine:v2.11 .
+#
+# KPIs:
+#   - Imagen final: ~1.2 GB
+#   - Latencia P50: <250ms (i7/8GB)
+#   - RAM runtime: ~2.1 GB
+
+# ============================================================================
+# Stage 1: Builder
+# ============================================================================
+FROM python:3.11-slim AS builder
+
+# Dependencias de build
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    git \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+
+# Copiar requirements
+COPY requirements.txt .
+
+# Instalar dependencias Python (user install para copia limpia)
+RUN pip install --user --no-cache-dir \
+    onnxruntime==1.17.0 \
+    librosa==0.10.1 \
+    soundfile==0.12.1 \
+    flask==3.0.0 \
+    numpy<2.0.0
+
+# ============================================================================
+# Stage 2: Runtime (Read-Only)
+# ============================================================================
+FROM python:3.11-slim
+
+# Metadata
+LABEL maintainer="SARAi v2.11 Omni-Sentinel"
+LABEL description="Motor de voz offline con Qwen2.5-Omni-3B-q4 (ONNX)"
+LABEL version="2.11.0"
+
+# Dependencias runtime (mínimas)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libsndfile1 \
+    libgomp1 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copiar Python packages desde builder
+COPY --from=builder /root/.local /usr/local
+
+# Crear usuario no-root
+RUN useradd -m -u 1000 sarai && \
+    mkdir -p /app/logs/audio /app/models && \
+    chown -R sarai:sarai /app
+
+# Copiar código de la aplicación
+COPY --chown=sarai:sarai agents/omni_pipeline.py /app/agents/
+COPY --chown=sarai:sarai core/__init__.py /app/core/
+COPY --chown=sarai:sarai core/audit.py /app/core/
+
+WORKDIR /app
+USER sarai
+
+# Variables de entorno
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+ENV OMNI_MODEL_PATH=/app/models/qwen2.5-omni-3B-es-q4.onnx
+ENV OMNI_PORT=8001
+
+# HEALTHCHECK (Docker/K8s liveness probe)
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8001/health || exit 1
+
+# Exponer puerto
+EXPOSE 8001
+
+# Volúmenes (se montarán read-only desde compose)
+VOLUME ["/app/models", "/app/logs"]
+
+# Comando principal
+CMD ["python", "-m", "agents.omni_pipeline"]
