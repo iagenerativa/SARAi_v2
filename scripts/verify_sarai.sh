@@ -11,8 +11,16 @@
 set -e
 
 # Configuración
-VERSION="${1:-v2.6.0-rc1}"
-IMAGE="ghcr.io/iagenerativa/sarai_v2:$VERSION"
+VERSION=$1
+if [ -z "$VERSION" ]; then
+    echo "Uso: $0 <version>"
+    echo "Ejemplo: $0 v2.6.0"
+    exit 1
+fi
+
+# Nombre del repositorio en minúsculas (Docker requirement)
+REPO="ghcr.io/iagenerativa/sarai_v2"
+IMAGE="$REPO:$VERSION"
 CERT_IDENTITY="https://github.com/iagenerativa/SARAi_v2/.*"
 OIDC_ISSUER="https://token.actions.githubusercontent.com"
 

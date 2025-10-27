@@ -45,6 +45,10 @@ jobs:
       # ============================================================
       # 2. BUILD & PUSH MULTI-ARCH (v2.5 God Mode)
       # ============================================================
+      - name: Extract repository name (lowercase)
+        id: repo
+        run: echo "name=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
       - name: Build & Push Docker Image (amd64 + arm64)
         id: build
         uses: docker/build-push-action@v5
@@ -53,8 +57,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}:${{ github.ref_name }}
-            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }}
+            ghcr.io/${{ steps.repo.outputs.name }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
@@ -74,26 +78,26 @@ jobs:
 
       - name: Generate SBOM (Software Bill of Materials)
         run: |
-          syft ghcr.io/${{ github.repository }}:${{ github.ref_name }} \
+          syft ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }} \
             -o spdx-json=sbom.spdx.json \
             -o cyclonedx-json=sbom.cyclonedx.json
           
           # Resumen legible para humans
-          syft ghcr.io/${{ github.repository }}:${{ github.ref_name }} \
+          syft ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }} \
             -o table > sbom.txt
 
       - name: Sign Docker Image (Cosign OIDC Keyless)
         run: |
           # Firma la imagen usando OIDC (sin claves locales)
           cosign sign --yes \
-            ghcr.io/${{ github.repository }}:${{ github.ref_name }}@${{ steps.build.outputs.digest }}
+            ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }}@${{ steps.build.outputs.digest }}
 
       - name: Attest SBOM to Image
         run: |
           # Adjunta el SBOM como attestation verificable
           cosign attest --yes --type spdxjson \
             --predicate sbom.spdx.json \
-            ghcr.io/${{ github.repository }}:${{ github.ref_name }}@${{ steps.build.outputs.digest }}
+            ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }}@${{ steps.build.outputs.digest }}
 
       # ============================================================
       # 4. GITHUB RELEASE
@@ -141,7 +145,7 @@ jobs:
           cosign verify \
             --certificate-identity-regexp="https://github.com/${{ github.repository }}/*" \
             --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
-            ghcr.io/${{ github.repository }}:${{ github.ref_name }}@${{ steps.build.outputs.digest }}
+            ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }}@${{ steps.build.outputs.digest }}
 
       - name: Summary
         run: |
@@ -149,7 +153,7 @@ jobs:
           # 🎉 SARAi ${{ github.ref_name }} Released!
           
           ## 📦 Artefactos Publicados
-          - **Docker Image**: \`ghcr.io/${{ github.repository }}:${{ github.ref_name }}\`
+          - **Docker Image**: \`ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }}\`
           - **Digest**: \`${{ steps.build.outputs.digest }}\`
           - **Platforms**: linux/amd64, linux/arm64
           - **SBOM**: Adjunto al release (SPDX + CycloneDX)
@@ -158,15 +162,15 @@ jobs:
           ## ✅ Verificación
           \`\`\`bash
           # Verificar firma
-          cosign verify ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+          cosign verify ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }}
           
           # Descargar SBOM
           cosign verify-attestation --type spdxjson \\
-            ghcr.io/${{ github.repository }}:${{ github.ref_name }} | jq .
+            ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }} | jq .
           
           # Ejecutar SARAi
           docker run --rm -p 8080:8080 \\
-            ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+            ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }}
           \`\`\`
           
           ## 📊 Dashboard
