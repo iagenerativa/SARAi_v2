@@ -15,12 +15,14 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /build
 
 # Copiar archivos del proyecto
-COPY requirements.txt setup.py ./
+COPY requirements.txt ./
 COPY agents/ ./agents/
 COPY core/ ./core/
 COPY scripts/ ./scripts/
 COPY config/ ./config/
 COPY tests/ ./tests/
+COPY sarai/ ./sarai/
+COPY main.py ./
 
 # Crear directorios necesarios
 RUN mkdir -p models/gguf models/trm_base models/trm_mini logs state
