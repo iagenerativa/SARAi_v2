@@ -13,22 +13,24 @@ from huggingface_hub import hf_hub_download
 from tqdm import tqdm
 
 
-# v2.4: Solo descargamos UNA copia de SOLAR (luego se carga con n_ctx variable)
+# v2.6.1: Repositorios GGUF verificados
+# Links oficiales:
+# - hf.co/solxxcero/SOLAR-10.7B-Instruct-v1.0-Q4_K_M-GGUF:Q4_K_M
+# - hf.co/LiquidAI/LFM2-1.2B-GGUF:Q4_K_M
 GGUF_MODELS = {
     "SOLAR-10.7B": {
-        "repo_id": "TheBloke/SOLAR-10.7B-Instruct-v1.0-GGUF",
+        "repo_id": "solxxcero/SOLAR-10.7B-Instruct-v1.0-Q4_K_M-GGUF",
         "filename": "solar-10.7b-instruct-v1.0.Q4_K_M.gguf",
         "output_path": "models/gguf/solar-10.7b.gguf",  # Nombre canónico
         "expected_size_mb": 6144,  # ~6GB
         "required": True
     },
     "LFM2-1.2B": {
-        "repo_id": "LiquidAI/LFM2-1.2B-GGUF",  # Verificar si existe repo GGUF
+        "repo_id": "LiquidAI/LFM2-1.2B-GGUF",
         "filename": "lfm2-1.2b.Q4_K_M.gguf",
         "output_path": "models/gguf/lfm2-1.2b.gguf",
         "expected_size_mb": 700,
-        "required": True,
-        "fallback_repo": "LiquidAI/LFM2-1.2B"  # Si no hay GGUF, convertir manualmente
+        "required": True
     },
     "Qwen2.5-Omni-7B": {
         "repo_id": "Qwen/Qwen2.5-Omni-7B-GGUF",

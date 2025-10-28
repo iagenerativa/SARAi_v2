@@ -7,8 +7,11 @@ models:
   expert:
     name: "SOLAR-10.7B-Instruct-v1.0"
     source: "upstage/SOLAR-10.7B-Instruct-v1.0"
-    quantization: "4bit"
-    max_memory_mb: 6144  # ~6GB
+    # GGUF: hf.co/solxxcero/SOLAR-10.7B-Instruct-v1.0-Q4_K_M-GGUF:Q4_K_M
+    gguf_repo: "solxxcero/SOLAR-10.7B-Instruct-v1.0-Q4_K_M-GGUF"
+    gguf_file: "solar-10.7b-instruct-v1.0.Q4_K_M.gguf"
+    quantization: "Q4_K_M"
+    max_memory_mb: 6144  # ~6GB (n_ctx=2048)
     device: "cpu"
     load_on_startup: false  # Cargar bajo demanda
     cache_dir: "./models/cache/solar"
@@ -20,7 +23,10 @@ models:
   tiny:
     name: "LFM2-1.2B"
     source: "LiquidAI/LFM2-1.2B"
-    quantization: "4bit"
+    # GGUF: hf.co/LiquidAI/LFM2-1.2B-GGUF:Q4_K_M
+    gguf_repo: "LiquidAI/LFM2-1.2B-GGUF"
+    gguf_file: "lfm2-1.2b.Q4_K_M.gguf"
+    quantization: "Q4_K_M"
     max_memory_mb: 700
     device: "cpu"
     load_on_startup: false  # Cargar bajo demanda

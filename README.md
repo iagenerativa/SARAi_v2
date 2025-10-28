@@ -78,6 +78,21 @@ SOLAR            LFM2                  SOLAR              Qwen-Omni
 
 **Total memoria pico**: ~10.8GB (expert_long + tiny + embeddings + TRM)
 
+### 📥 Fuentes de Modelos GGUF
+
+Los modelos están pre-cuantizados a Q4_K_M y listos para usar:
+
+- **SOLAR-10.7B**: [`hf.co/solxxcero/SOLAR-10.7B-Instruct-v1.0-Q4_K_M-GGUF`](https://huggingface.co/solxxcero/SOLAR-10.7B-Instruct-v1.0-Q4_K_M-GGUF) (archivo: `Q4_K_M`)
+- **LFM2-1.2B**: [`hf.co/LiquidAI/LFM2-1.2B-GGUF`](https://huggingface.co/LiquidAI/LFM2-1.2B-GGUF) (archivo: `Q4_K_M`)
+- **Qwen2.5-Omni-7B**: `hf.co/Qwen/Qwen2.5-Omni-7B-GGUF` (archivo: `Q4_K_M`, opcional)
+
+**Descarga automatizada**:
+```bash
+python scripts/download_gguf_models.py
+```
+
+Para más detalles sobre modelos, ver [`docs/MODELS.md`](docs/MODELS.md).
+
 ## 🚀 Quick Start
 
 ```bash
