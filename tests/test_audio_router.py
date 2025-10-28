@@ -107,8 +107,14 @@ class TestLanguageDetector:
     
     @patch('agents.audio_router.whisper')
     @patch('agents.audio_router.fasttext')
-    def test_detect_english(self, mock_ft, mock_whisper, sample_audio_bytes):
+    @patch('agents.audio_router.np.frombuffer')
+    @patch('agents.audio_router.os.path.exists', return_value=True)
+    def test_detect_english(self, mock_exists, mock_frombuffer, mock_ft, mock_whisper, sample_audio_bytes):
         """Verifica detección de inglés"""
+        # Mock np.frombuffer para evitar error con bytes fake
+        mock_audio_array = np.zeros(1000, dtype=np.float32)
+        mock_frombuffer.return_value = mock_audio_array
+        
         mock_whisper_model = Mock()
         mock_whisper_model.transcribe.return_value = {"text": "Hello world"}
         mock_whisper.load_model.return_value = mock_whisper_model

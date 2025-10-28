@@ -182,11 +182,19 @@ class LanguageDetector:
             text_clean = text.replace("\n", " ").strip()
             
             predictions = self.lid_model.predict(text_clean, k=1)
-            lang_label = predictions[0][0]  # '__label__es'
+            lang_label = predictions[0][0]  # '__label__es' o '__label__spa'
             confidence = predictions[1][0]
             
             # Limpiar etiqueta
             lang = lang_label.replace("__label__", "")
+            
+            # Mapeo ISO 639-3 → ISO 639-1 (fasttext puede retornar ambos formatos)
+            lang_map = {
+                "spa": "es", "eng": "en", "fra": "fr", "deu": "de", 
+                "jpn": "ja", "por": "pt", "ita": "it", "rus": "ru",
+                "zho": "zh", "ara": "ar", "hin": "hi", "kor": "ko"
+            }
+            lang = lang_map.get(lang, lang)[:2]  # Truncar a 2 chars si no está en map
             
             logger.info(f"🌍 Idioma detectado: {lang} (confianza: {confidence:.2f})")
             
