@@ -59,10 +59,6 @@ RUN if [ "$TARGETARCH" = "amd64" ]; then \
 RUN cd build/bin && \
     upx --best --lzma llama-cli || true
 
-# DEBUG: List all .so files to find their location
-RUN echo "=== Listing all .so files ===" && \
-    find /build/llama.cpp/build -name "*.so" -type f
-
 # Generate SHA256 checksum
 RUN cd build/bin && \
     sha256sum llama-cli > llama-binaries.sha256
@@ -78,11 +74,11 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy binaries AND shared libraries from builder
-# NOTE: libllama.so and libggml.so are in build/ not build/bin/
+# NOTE: Shared libraries are in build/src/ and build/ggml/src/, not build/
 COPY --from=builder /build/llama.cpp/build/bin/llama-cli /usr/local/bin/
 COPY --from=builder /build/llama.cpp/build/bin/llama-binaries.sha256 /usr/local/bin/
-COPY --from=builder /build/llama.cpp/build/libllama.so /usr/local/lib/
-COPY --from=builder /build/llama.cpp/build/libggml.so /usr/local/lib/
+COPY --from=builder /build/llama.cpp/build/src/libllama.so /usr/local/lib/
+COPY --from=builder /build/llama.cpp/build/ggml/src/libggml.so /usr/local/lib/
 
 # Update library cache
 RUN ldconfig
