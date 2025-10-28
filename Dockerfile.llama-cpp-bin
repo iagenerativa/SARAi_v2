@@ -71,9 +71,14 @@ RUN apt-get update && apt-get install -y \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy binaries from builder
+# Copy binaries AND shared libraries from builder
 COPY --from=builder /build/llama.cpp/build/bin/llama-cli /usr/local/bin/
 COPY --from=builder /build/llama.cpp/build/bin/llama-binaries.sha256 /usr/local/bin/
+COPY --from=builder /build/llama.cpp/build/bin/libllama.so /usr/local/lib/
+COPY --from=builder /build/llama.cpp/build/bin/libggml.so /usr/local/lib/
+
+# Update library cache
+RUN ldconfig
 
 # Make binaries executable
 RUN chmod +x /usr/local/bin/llama-cli
