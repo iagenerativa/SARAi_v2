@@ -309,8 +309,8 @@ class AudioAuditLogger:
     ):
         """Registra una interacción de voz completa"""
         date_str = datetime.now().strftime("%Y-%m-%d")
-        log_file = self.log_dir / f"{date_str}.jsonl"
-        hmac_file = self.log_dir / f"{date_str}.jsonl.hmac"
+        log_file = self.log_dir / f"voice_interactions_{date_str}.jsonl"
+        hmac_file = self.log_dir / f"voice_interactions_{date_str}.jsonl.hmac"
         
         entry = {
             "timestamp": datetime.now().isoformat(),

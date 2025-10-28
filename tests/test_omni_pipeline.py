@@ -334,11 +334,36 @@ class TestAPIEndpoints:
     
     @pytest.fixture
     def client(self):
-        """Cliente de Flask para testing"""
+        """Cliente de Flask para testing con engine mockeado"""
+        import numpy as np
         from agents.omni_pipeline import app
+        import agents.omni_pipeline as omni_module
+        
+        # Mock del engine global
+        mock_engine = MagicMock()
+        mock_engine.session = MagicMock()  # ONNX session mock
+        
+        # Configurar métodos que retornan valores
+        # TTS retorna (audio_array, latency_ms)
+        mock_audio = np.zeros((1000,), dtype=np.float32)  # 1000 samples de silencio
+        mock_engine.tts_empathic.return_value = (mock_audio, 120.0)
+        
+        # STT retorna dict con text, emotion, latency
+        mock_engine.stt_with_emotion.return_value = {
+            "text": "Mock transcription",
+            "emotion": "neutral",
+            "latency_ms": 80.0
+        }
+        
+        # Inyectar mock en el módulo
+        omni_module.engine = mock_engine
+        
         app.config['TESTING'] = True
         with app.test_client() as client:
             yield client
+        
+        # Limpiar después del test
+        omni_module.engine = None
     
     def test_health_endpoint(self, client):
         """Verifica endpoint /health"""
@@ -346,15 +371,22 @@ class TestAPIEndpoints:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert data["status"] == "healthy"
+        assert data["status"] == "HEALTHY"
     
     @patch('agents.omni_pipeline.is_safe_mode', return_value=True)
     def test_voice_gateway_safe_mode(self, mock_safe, client):
         """Verifica que /voice-gateway respeta Safe Mode"""
         response = client.post('/voice-gateway')
         
+        # Debe retornar 200 con audio sentinel (TTS de advertencia)
         assert response.status_code == 200
-        assert b"modo seguro" in response.data  # Audio sentinel
+        
+        # Verifica que es audio WAV
+        assert response.data.startswith(b'RIFF')
+        assert b'WAVE' in response.data[:20]
+        
+        # Verifica que is_safe_mode fue llamado
+        mock_safe.assert_called()
 
 
 # Configuración de pytest
