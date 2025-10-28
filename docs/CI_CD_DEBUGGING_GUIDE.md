@@ -321,15 +321,69 @@ Antes de hacer `git tag vX.Y.Z && git push origin vX.Y.Z`:
 
 ---
 
-## 📚 Referencias
+## � Errores de Infraestructura de GitHub Actions
+
+### Error: "No space left on device"
+
+**Síntoma**:
+```
+System.IO.IOException: No space left on device : '/home/runner/actions-runner/cached/_diag/Worker_*.log'
+```
+
+**Causa**: El runner de GitHub Actions asignado se quedó sin espacio en disco. **NO es culpa del código**.
+
+**Diagnóstico**:
+1. El error aparece en cualquier milestone (M0, M1, M5, etc.)
+2. Ocurre ANTES de ejecutar tu código (durante init del runner)
+3. Archivo afectado: `/home/runner/actions-runner/cached/_diag/...`
+
+**Soluciones** (en orden de prioridad):
+
+1. **Re-run del workflow** (GitHub asignará nuevo runner con espacio):
+   - Ir a: `https://github.com/USER/REPO/actions`
+   - Click en el workflow fallido
+   - Botón: **"Re-run jobs"** (esquina superior derecha)
+   - ✅ Esto resuelve el 95% de los casos
+
+2. **Limpiar artifacts antiguos del repositorio**:
+   ```bash
+   # Manualmente en GitHub:
+   # Settings → Actions → Artifacts
+   # Borrar artifacts antiguos (>30 días)
+   
+   # O vía GitHub CLI:
+   gh api repos/{owner}/{repo}/actions/artifacts --paginate \
+     | jq -r '.artifacts[] | select(.expired == false) | .id' \
+     | xargs -I {} gh api --method DELETE repos/{owner}/{repo}/actions/artifacts/{}
+   ```
+
+3. **Si persiste** (raro):
+   - Esperar 30-60 minutos (GitHub limpia runners automáticamente)
+   - Cambiar runner: `runs-on: ubuntu-22.04` → `runs-on: ubuntu-20.04`
+   - Contactar GitHub Support si ocurre >3 veces consecutivas
+
+**NO hagas**:
+- ❌ Modificar el código (no es un bug tuyo)
+- ❌ Reducir el tamaño del Dockerfile (el error ocurre antes del build)
+- ❌ Cambiar `.milestones` logging (no afecta al espacio del runner)
+
+**Casos reales**:
+- Tag `v2.6.3` (28 Oct 2025): Error en init del runner
+  - **Solución**: Re-run jobs
+  - **Resultado**: Workflow completó exitosamente en segundo intento
+
+---
+
+## �📚 Referencias
 
 - **Workflow File**: `.github/workflows/release.yml`
 - **Milestones Dir**: `.milestones/` (en artifacts)
 - **SBOM Format**: SPDX 2.3 + CycloneDX 1.4
 - **Cosign Docs**: https://docs.sigstore.dev/cosign/overview/
 - **Syft Docs**: https://github.com/anchore/syft
+- **GitHub Actions Status**: https://www.githubstatus.com/
 
 ---
 
 **Última actualización**: 28 de octubre de 2025  
-**Versión del workflow**: v2.6 con 16 milestones
+**Versión del workflow**: v2.6.3 con 16 milestones + "No space" troubleshooting
