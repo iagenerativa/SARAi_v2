@@ -331,3 +331,162 @@ class TestEmotionModulationIntegration:
         """Test pipeline completo con audio real"""
         # TODO: Implementar cuando tengamos audio samples
         pass
+    
+    @pytest.mark.skip(reason="Test interactivo - ejecutar manualmente con -k real_microphone_emotion")
+    def test_emotion_detection_with_real_microphone(self):
+        """
+        Test INTERACTIVO de detección emocional con micrófono
+        
+        Uso:
+            pytest tests/test_emotion_modulator.py::TestEmotionModulationIntegration::test_emotion_detection_with_real_microphone -s
+        
+        O activar todos los tests de micrófono:
+            pytest tests/ -k real_microphone -s
+        """
+        try:
+            import pyaudio
+            import wave
+            import tempfile
+            from scipy.io import wavfile
+        except ImportError as e:
+            pytest.skip(f"Dependencia faltante: {e}. Instalar con: pip install pyaudio scipy")
+        
+        print("\n" + "="*70)
+        print("🎭 TEST INTERACTIVO: Detección de emoción con micrófono")
+        print("="*70)
+        
+        # Configuración
+        CHUNK = 1024
+        FORMAT = pyaudio.paInt16
+        CHANNELS = 1
+        RATE = 16000
+        RECORD_SECONDS = 3
+        
+        print(f"\n📋 Instrucciones:")
+        print(f"   1. Grabarás {RECORD_SECONDS} segundos de audio")
+        print(f"   2. Expresa una emoción clara (alegría, tristeza, enojo, etc.)")
+        print(f"   3. El sistema detectará tu estado emocional")
+        
+        input("\n▶️  Presiona ENTER cuando estés listo...")
+        
+        # Grabar
+        p = pyaudio.PyAudio()
+        
+        print("\n🔴 GRABANDO... (expresa una emoción)")
+        print("   💡 Ejemplos:")
+        print("      - Feliz: 'Estoy muy contento hoy!'")
+        print("      - Triste: 'Me siento mal...'")
+        print("      - Enojado: '¡Esto es frustrante!'")
+        print("      - Tranquilo: 'Todo está bien'")
+        
+        stream = p.open(
+            format=FORMAT,
+            channels=CHANNELS,
+            rate=RATE,
+            input=True,
+            frames_per_buffer=CHUNK
+        )
+        
+        frames = []
+        for i in range(0, int(RATE / CHUNK * RECORD_SECONDS)):
+            data = stream.read(CHUNK)
+            frames.append(data)
+            if i % 8 == 0:
+                print("█", end="", flush=True)
+        
+        print(" ✅ Grabación completada\n")
+        
+        stream.stop_stream()
+        stream.close()
+        p.terminate()
+        
+        # Guardar y procesar
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_wav:
+            wf = wave.open(temp_wav.name, 'wb')
+            wf.setnchannels(CHANNELS)
+            wf.setsampwidth(p.get_sample_size(FORMAT))
+            wf.setframerate(RATE)
+            wf.writeframes(b''.join(frames))
+            wf.close()
+            
+            # Leer como array numpy
+            sample_rate, audio_data = wavfile.read(temp_wav.name)
+            
+            # Normalizar a [-1, 1]
+            audio_features = audio_data.astype(np.float32) / 32768.0
+        
+        # DETECCIÓN EMOCIONAL
+        print("🔍 Analizando emoción del audio...")
+        
+        modulator = EmotionModulator()
+        profile = modulator.detect_emotion(audio_features)
+        
+        # Mostrar resultados
+        print("\n" + "="*70)
+        print("📊 RESULTADOS DE ANÁLISIS EMOCIONAL")
+        print("="*70)
+        
+        # Emoji por emoción
+        emotion_emojis = {
+            EmotionCategory.HAPPY: "😊",
+            EmotionCategory.SAD: "😢",
+            EmotionCategory.ANGRY: "😠",
+            EmotionCategory.FEARFUL: "😨",
+            EmotionCategory.SURPRISED: "😮",
+            EmotionCategory.DISGUSTED: "🤢",
+            EmotionCategory.CALM: "😌",
+            EmotionCategory.EXCITED: "🤩",
+            EmotionCategory.NEUTRAL: "😐"
+        }
+        
+        emoji = emotion_emojis.get(profile.primary, "❓")
+        
+        print(f"\n🎭 Emoción Primaria: {emoji} {profile.primary.value.upper()}")
+        print(f"   Intensidad: {profile.intensity:.2f} / 1.00")
+        print(f"   Confianza: {profile.confidence:.2f} / 1.00")
+        
+        if profile.secondary:
+            emoji_sec = emotion_emojis.get(profile.secondary, "❓")
+            print(f"\n🎭 Emoción Secundaria: {emoji_sec} {profile.secondary.value}")
+        
+        # Top 3 scores
+        if profile.raw_scores:
+            print("\n📈 Top 3 Scores:")
+            sorted_scores = sorted(profile.raw_scores.items(), key=lambda x: x[1], reverse=True)[:3]
+            for i, (emotion, score) in enumerate(sorted_scores, 1):
+                bar = "█" * int(score * 30)
+                print(f"   {i}. {emotion.value:12} {bar} {score:.3f}")
+        
+        # Características del audio
+        print("\n🔊 Características Acústicas:")
+        mean_energy = np.mean(np.abs(audio_features))
+        max_energy = np.max(np.abs(audio_features))
+        std_energy = np.std(audio_features)
+        zcr = np.mean(np.abs(np.diff(np.sign(audio_features)))) / 2.0
+        
+        print(f"   Energía promedio: {mean_energy:.4f}")
+        print(f"   Energía máxima: {max_energy:.4f}")
+        print(f"   Desviación std: {std_energy:.4f}")
+        print(f"   Zero-crossing rate: {zcr:.4f}")
+        
+        # Verificación manual
+        print("\n" + "="*70)
+        print("❓ ¿La detección es correcta? (y/n): ", end="")
+        user_confirm = input().strip().lower()
+        
+        if user_confirm == 'y':
+            print("\n✅ Test PASSED - Detección emocional correcta")
+            print(f"   Emoción detectada: {profile.primary.value}")
+            print(f"   Confianza: {profile.confidence:.1%}")
+            assert profile.confidence > 0.3, "Confianza muy baja"
+        else:
+            print("\n📝 ¿Cuál era la emoción correcta? (happy/sad/angry/calm/etc.): ", end="")
+            correct_emotion = input().strip().lower()
+            
+            print(f"\n❌ Test FAILED - Detección incorrecta")
+            print(f"   Detectado: {profile.primary.value}")
+            print(f"   Correcto: {correct_emotion}")
+            print(f"\n💡 Esto es esperado en Fase 1 (heurísticas básicas)")
+            print(f"   Fase 2 integrará modelo real (emoDBert) para mejorar precisión")
+            
+            pytest.fail(f"Usuario indicó emoción correcta: '{correct_emotion}', detectado: '{profile.primary.value}'")

@@ -137,6 +137,127 @@ class TestLanguageDetector:
         
         detector = LanguageDetector()
         lang = detector.detect(sample_audio_bytes)
+    
+    @pytest.mark.skip(reason="Requiere micrófono real - ejecutar manualmente con pytest -k real_microphone")
+    def test_detect_with_real_microphone(self):
+        """
+        Test INTERACTIVO con micrófono real
+        
+        Uso:
+            pytest tests/test_audio_router.py::TestLanguageDetector::test_detect_with_real_microphone -s
+        
+        O sin skip:
+            pytest tests/test_audio_router.py -k real_microphone -s --no-skip
+        """
+        try:
+            import pyaudio
+            import wave
+            import tempfile
+        except ImportError:
+            pytest.skip("pyaudio no instalado. Instalar con: pip install pyaudio")
+        
+        print("\n" + "="*60)
+        print("🎤 TEST INTERACTIVO: Detección de idioma con micrófono")
+        print("="*60)
+        
+        # Configuración de grabación
+        CHUNK = 1024
+        FORMAT = pyaudio.paInt16
+        CHANNELS = 1
+        RATE = 16000
+        RECORD_SECONDS = 5
+        
+        print(f"\n📋 Configuración:")
+        print(f"   - Duración: {RECORD_SECONDS} segundos")
+        print(f"   - Sample rate: {RATE} Hz")
+        print(f"   - Channels: {CHANNELS}")
+        
+        input("\n▶️  Presiona ENTER para comenzar a grabar...")
+        
+        # Inicializar PyAudio
+        p = pyaudio.PyAudio()
+        
+        print("\n🔴 GRABANDO... (habla en cualquier idioma)")
+        
+        stream = p.open(
+            format=FORMAT,
+            channels=CHANNELS,
+            rate=RATE,
+            input=True,
+            frames_per_buffer=CHUNK
+        )
+        
+        frames = []
+        for i in range(0, int(RATE / CHUNK * RECORD_SECONDS)):
+            data = stream.read(CHUNK)
+            frames.append(data)
+            # Indicador de progreso
+            if i % 10 == 0:
+                print("█", end="", flush=True)
+        
+        print(" ✅ Grabación completada\n")
+        
+        stream.stop_stream()
+        stream.close()
+        p.terminate()
+        
+        # Guardar temporalmente
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_wav:
+            wf = wave.open(temp_wav.name, 'wb')
+            wf.setnchannels(CHANNELS)
+            wf.setsampwidth(p.get_sample_size(FORMAT))
+            wf.setframerate(RATE)
+            wf.writeframes(b''.join(frames))
+            wf.close()
+            
+            # Leer como bytes
+            with open(temp_wav.name, 'rb') as f:
+                audio_bytes = f.read()
+        
+        # DETECCIÓN con LanguageDetector REAL (sin mocks)
+        print("🔍 Detectando idioma...")
+        detector = LanguageDetector()
+        
+        try:
+            detected_lang = detector.detect(audio_bytes)
+            
+            print("\n" + "="*60)
+            print(f"✅ RESULTADO: {detected_lang.upper()}")
+            print("="*60)
+            
+            # Mapeo de códigos a nombres
+            lang_names = {
+                "es": "Español",
+                "en": "English",
+                "fr": "Français",
+                "de": "Deutsch",
+                "ja": "日本語",
+                "pt": "Português",
+                "it": "Italiano",
+                "ru": "Русский",
+                "zh": "中文",
+                "ar": "العربية",
+                "hi": "हिन्दी",
+                "ko": "한국어"
+            }
+            
+            lang_name = lang_names.get(detected_lang, "Desconocido")
+            print(f"\n🌍 Idioma detectado: {lang_name} ({detected_lang})")
+            
+            # Verificación manual
+            print("\n❓ ¿Es correcto? (y/n): ", end="")
+            user_confirm = input().strip().lower()
+            
+            if user_confirm == 'y':
+                print("✅ Test PASSED - Detección correcta")
+                assert True
+            else:
+                print("❌ Test FAILED - Detección incorrecta")
+                pytest.fail(f"Usuario indicó que '{detected_lang}' es incorrecto")
+        
+        except Exception as e:
+            print(f"\n❌ ERROR en detección: {e}")
+            pytest.fail(f"Detección falló: {e}")
         
         # Debe asumir español por defecto
         assert lang == "es"
