@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 """
-#!/usr/bin/env python3
-"""
 agents/audio_router.py - Audio Router con Fallback Sentinel v2.11
 
 Copyright (c) 2025 Noel
@@ -81,10 +79,24 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+class AudioConfig:
+    """Configuración de audio router desde .env"""
+    
+    def __init__(self):
+        self.engine = AUDIO_ENGINE
+        self.languages = NLLB_LANGS
+        self.omni_langs = OMNI_LANGS
+        self.nllb_langs = [l for l in NLLB_LANGS if l not in OMNI_LANGS]
+
+
+def get_audio_config() -> AudioConfig:
+    """Factory para obtener configuración de audio"""
+    return AudioConfig()
+
+
 # ============================================================================
 # DETECCIÓN DE IDIOMA (Language Identification)
 # ============================================================================
-
 class LanguageDetector:
     """
     Detector de idioma ligero con Whisper-tiny + fasttext
@@ -257,6 +269,32 @@ def route_audio(audio_bytes: bytes) -> Tuple[str, bytes, Optional[str]]:
             "Usando Omni-3B en español."
         )
         return ("omni", audio_bytes, "es")
+
+
+# ============================================================================
+# ESTADÍSTICAS Y MÉTRICAS
+# ============================================================================
+
+# Métricas globales del router
+_router_stats = {
+    "total_requests": 0,
+    "fallback_count": 0,
+    "lid_failures": 0,
+    "languages_detected": {}
+}
+
+
+def get_router_stats() -> dict:
+    """Retorna estadísticas del router para monitoreo"""
+    stats = _router_stats.copy()
+    
+    # Calcular fallback rate
+    if stats["total_requests"] > 0:
+        stats["fallback_rate"] = stats["fallback_count"] / stats["total_requests"]
+    else:
+        stats["fallback_rate"] = 0.0
+    
+    return stats
 
 
 # ============================================================================
