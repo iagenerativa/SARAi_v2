@@ -27,9 +27,10 @@ COPY main.py ./
 # Crear directorios necesarios
 RUN mkdir -p models/gguf models/trm_base models/trm_mini logs state
 
-# Descargar modelos GGUF ANTES de instalar deps Python
-# Esto mejora el caching de capas si solo cambias código
-RUN python3 scripts/download_gguf_models.py || echo "⚠️ Download script no disponible, saltando..."
+# NOTA v2.6.1: Modelos GGUF se descargan en RUNTIME, no en BUILD
+# Esto evita timeout en GitHub Actions (multi-arch build 45+ min)
+# Los modelos se descargan automáticamente en el primer run de SARAi
+# RUN python3 scripts/download_gguf_models.py || echo "⚠️ Download script no disponible, saltando..."
 
 # Instalar dependencias en --user (se copiará a runtime stage)
 RUN pip install --user --no-cache-dir -r requirements.txt
