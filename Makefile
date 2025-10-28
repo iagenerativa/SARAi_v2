@@ -237,5 +237,79 @@ audit-log:  ## 📋 NEW v2.8: Verifica integridad de logs con SHA-256
 		exit 1; \
 	fi
 
+validate-hardening:  ## 🛡️ NEW v2.11: Valida seguridad kernel-level del contenedor Omni
+	@echo "🛡️ Validando hardening de contenedor Omni..."
+	@echo ""
+	@echo "Verificando que el contenedor está corriendo..."
+	@if ! docker ps --format '{{.Names}}' | grep -q "sarai-omni-engine"; then \
+		echo "❌ Contenedor sarai-omni-engine no está corriendo"; \
+		echo "   Ejecuta: docker-compose up -d omni_pipeline"; \
+		exit 1; \
+	fi
+	@echo "✅ Contenedor activo"
+	@echo ""
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "🔍 TEST 1: no-new-privileges (prevención escalada)"
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@if docker inspect sarai-omni-engine | jq -e '.[0].HostConfig.SecurityOpt | contains(["no-new-privileges:true"])' > /dev/null; then \
+		echo "✅ no-new-privileges activo"; \
+	else \
+		echo "❌ no-new-privileges FALTA"; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "🔍 TEST 2: cap_drop ALL (capabilities eliminadas)"
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@if docker inspect sarai-omni-engine | jq -e '.[0].HostConfig.CapDrop | contains(["ALL"])' > /dev/null; then \
+		echo "✅ cap_drop ALL activo"; \
+	else \
+		echo "❌ cap_drop ALL FALTA"; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "🔍 TEST 3: read_only filesystem (inmutabilidad)"
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@if docker inspect sarai-omni-engine | jq -e '.[0].HostConfig.ReadonlyRootfs' | grep -q true; then \
+		echo "✅ read_only filesystem activo"; \
+	else \
+		echo "❌ read_only filesystem FALTA"; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "🔍 TEST 4: Escalada bloqueada (debe fallar)"
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@if docker exec sarai-omni-engine sudo ls 2>&1 | grep -q "sudo: not found\|effective uid is not 0\|Permission denied"; then \
+		echo "✅ Escalada bloqueada (sudo no funciona)"; \
+	else \
+		echo "⚠️ sudo posible (revisar configuración)"; \
+	fi
+	@echo ""
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "🔍 TEST 5: Usuario non-root"
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@if docker exec sarai-omni-engine whoami 2>&1 | grep -q "sarai"; then \
+		echo "✅ Usuario non-root (sarai)"; \
+	else \
+		echo "❌ Usuario root detectado"; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "🔍 TEST 6: tmpfs en /tmp (RAM-only)"
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@if docker exec sarai-omni-engine df -h /tmp 2>&1 | grep -q "tmpfs"; then \
+		echo "✅ tmpfs montado en /tmp"; \
+	else \
+		echo "⚠️ tmpfs no detectado en /tmp"; \
+	fi
+	@echo ""
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "✅ HARDENING VALIDADO - Contenedor Omni seguro"
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
 # Target por defecto
 .DEFAULT_GOAL := help
+

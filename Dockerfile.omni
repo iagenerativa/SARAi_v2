@@ -1,89 +1,162 @@
-# Dockerfile.omni - Motor de Voz "Omni-Sentinel" v2.11
+# ============================================================================
+# Dockerfile.omni - SARAi v2.11 Omni-Sentinel Voice Engine (HARDENED)
+# ============================================================================
 # 
-# Imagen read-only para el pipeline de voz con Qwen2.5-Omni-3B-q4
+# Hardened Docker container for Qwen2.5-Omni-3B voice processing pipeline
 # 
-# Build multi-arch:
+# Security Features (Kernel-level):
+#   - Multi-stage build (minimal attack surface)
+#   - Non-root user execution
+#   - Read-only filesystem
+#   - No new privileges (no sudo/setuid/setcap)
+#   - All capabilities dropped
+#   - tmpfs for writable areas (RAM-only, no persistence)
+#   - Internal network isolation
+#   - Health check monitoring
+# 
+# Build:
 #   docker buildx build --platform linux/amd64,linux/arm64 \
 #     -f Dockerfile.omni -t sarai-omni-engine:v2.11 .
-#
-# KPIs:
-#   - Imagen final: ~1.2 GB
-#   - Latencia P50: <250ms (i7/8GB)
-#   - RAM runtime: ~2.1 GB
+# 
+# Author: SARAi v2.11 Team
+# License: CC-BY-NC-SA 4.0
+# ============================================================================
 
 # ============================================================================
-# Stage 1: Builder
+# Stage 1: Builder - Compile dependencies and download models
 # ============================================================================
-FROM python:3.11-slim AS builder
+FROM python:3.11-slim as builder
 
-# Dependencias de build
+# Install build tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     git \
     wget \
     && rm -rf /var/lib/apt/lists/*
 
+# Create build directory
 WORKDIR /build
 
-# Copiar requirements
+# Copy dependency files
 COPY requirements.txt .
 
-# Instalar dependencias Python (user install para copia limpia)
+# Install Python dependencies to user directory
 RUN pip install --user --no-cache-dir \
+    flask==3.0.0 \
     onnxruntime==1.17.0 \
     librosa==0.10.1 \
     soundfile==0.12.1 \
-    flask==3.0.0 \
-    numpy<2.0.0
+    numpy<2.0.0 \
+    transformers==4.35.0 \
+    sentencepiece==0.1.99
+
+# Copy application code
+COPY agents/ ./agents/
+COPY core/ ./core/
+COPY config/ ./config/
+
+# Pre-download critical models (cache layer optimization)
+RUN python -c "from transformers import AutoTokenizer; \
+    AutoTokenizer.from_pretrained('Qwen/Qwen2.5-Omni-7B', cache_dir='/build/models')" || true
+
 
 # ============================================================================
-# Stage 2: Runtime (Read-Only)
+# Stage 2: Runtime - Minimal production image (HARDENED)
 # ============================================================================
 FROM python:3.11-slim
 
 # Metadata
 LABEL maintainer="SARAi v2.11 Omni-Sentinel"
-LABEL description="Motor de voz offline con Qwen2.5-Omni-3B-q4 (ONNX)"
+LABEL description="Hardened voice engine with kernel-level security"
 LABEL version="2.11.0"
+LABEL security.capabilities="none"
+LABEL security.readonly="true"
+LABEL security.user="non-root"
 
-# Dependencias runtime (mínimas)
+# Install runtime dependencies only (minimal)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libsndfile1 \
     libgomp1 \
+    libsndfile1 \
     curl \
-    && rm -rf /var/lib/apt/lists/*
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
-# Copiar Python packages desde builder
-COPY --from=builder /root/.local /usr/local
+# Create non-root user 'sarai' with no login shell
+# UID 1000 for compatibility with volume mounts
+RUN useradd -r -s /sbin/nologin -u 1000 -m sarai
 
-# Crear usuario no-root
-RUN useradd -m -u 1000 sarai && \
-    mkdir -p /app/logs/audio /app/models && \
-    chown -R sarai:sarai /app
+# Copy Python dependencies from builder
+COPY --from=builder --chown=sarai:sarai /root/.local /home/sarai/.local
 
-# Copiar código de la aplicación
-COPY --chown=sarai:sarai agents/omni_pipeline.py /app/agents/
-COPY --chown=sarai:sarai core/__init__.py /app/core/
-COPY --chown=sarai:sarai core/audit.py /app/core/
+# Copy application code from builder
+COPY --from=builder --chown=sarai:sarai /build/agents /app/agents
+COPY --from=builder --chown=sarai:sarai /build/core /app/core
+COPY --from=builder --chown=sarai:sarai /build/config /app/config
 
+# Copy model cache (if exists)
+COPY --from=builder --chown=sarai:sarai /build/models /app/models
+
+# Set working directory
 WORKDIR /app
-USER sarai
 
-# Variables de entorno
+# Create directory structure for runtime
+# Note: These will be mounted as tmpfs (RAM-only) in docker-compose
+RUN mkdir -p /app/logs /app/state /tmp/audio_cache \
+    && chown -R sarai:sarai /app /tmp/audio_cache
+
+# Set Python path and user bin path
 ENV PYTHONPATH=/app
+ENV PATH=/home/sarai/.local/bin:$PATH
 ENV PYTHONUNBUFFERED=1
-ENV OMNI_MODEL_PATH=/app/models/qwen2.5-omni-3B-es-q4.onnx
-ENV OMNI_PORT=8001
 
-# HEALTHCHECK (Docker/K8s liveness probe)
+# ============================================================================
+# Security Hardening Configuration
+# ============================================================================
+# 
+# The following security policies are enforced via docker-compose.override.yml:
+# 
+# security_opt:
+#   - no-new-privileges:true     # Prevents privilege escalation
+# 
+# cap_drop:
+#   - ALL                        # Drop all Linux capabilities
+# 
+# read_only: true                # Filesystem is immutable
+# 
+# tmpfs:
+#   - /app/logs:size=256M        # Logs in RAM only
+#   - /app/state:size=128M       # State in RAM only
+#   - /tmp:size=512M             # Temp files in RAM
+# 
+# networks:
+#   - sarai_internal             # Internal network (no internet)
+# 
+# deploy:
+#   resources:
+#     limits:
+#       memory: 4G               # Max RAM: Omni-3B + overhead
+#       cpus: '2'                # Max 2 CPU cores
+#     reservations:
+#       memory: 2G               # Reserved RAM
+# 
+# ============================================================================
+
+# ============================================================================
+# Health Check
+# ============================================================================
+
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8001/health || exit 1
 
-# Exponer puerto
+# Expose port (internal network only)
 EXPOSE 8001
 
-# Volúmenes (se montarán read-only desde compose)
-VOLUME ["/app/models", "/app/logs"]
+# Switch to non-root user
+USER sarai
 
-# Comando principal
+# ============================================================================
+# Entrypoint - Voice Gateway API
+# ============================================================================
+
 CMD ["python", "-m", "agents.omni_pipeline"]

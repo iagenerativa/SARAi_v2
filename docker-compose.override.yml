@@ -18,7 +18,7 @@
 
 services:
   # ==========================================================================
-  # Motor de Voz Omni-Sentinel
+  # Motor de Voz Omni-Sentinel (HARDENED v2.11 - Fase 5)
   # ==========================================================================
   omni_pipeline:
     build:
@@ -27,26 +27,46 @@ services:
     image: sarai-omni-engine:v2.11
     container_name: sarai-omni-engine
     
-    # 🔒 Seguridad: contenedor read-only
+    # 🔒 SEGURIDAD KERNEL-LEVEL (No Negociable)
+    # ========================================================================
+    
+    # Filesystem read-only (inmutable)
     read_only: true
     
-    # 🛡️ HARDENING v2.11 (Ajuste C - No Negociable)
+    # Prevención de escalada de privilegios
     security_opt:
-      - no-new-privileges:true  # Impide sudo/setuid dentro del contenedor
-    cap_drop:
-      - ALL  # Renuncia a todas las capabilities de Linux
+      - no-new-privileges:true  # Impide sudo/setuid/setcap dentro del contenedor
     
-    # Volúmenes explícitos (mínimos)
+    # Drop ALL Linux capabilities (superficie mínima de ataque)
+    cap_drop:
+      - ALL
+    
+    # Usuario non-root (UID 1000, definido en Dockerfile.omni)
+    user: "1000:1000"
+    
+    # tmpfs para áreas escribibles (RAM-only, no persiste)
+    tmpfs:
+      - /tmp:size=512M,mode=1777              # Temp files
+      - /app/logs:size=256M,mode=0755         # Logs en RAM
+      - /app/state:size=128M,mode=0755        # State temporal
+    
+    # Volúmenes explícitos (mínimos necesarios)
     volumes:
       # Modelos ONNX (read-only)
       - ./models:/app/models:ro
       
-      # Logs de audio (read-write, HMAC firmados)
-      - ./logs/audio:/app/logs/audio:rw
+      # Config (read-only)
+      - ./config:/app/config:ro
     
-    # Tmp para audio temporal (tmpfs en RAM, no persiste)
-    tmpfs:
-      - /tmp:size=512M,mode=1777
+    # Resource limits (protección contra DoS)
+    deploy:
+      resources:
+        limits:
+          memory: 4G        # Omni-3B + overhead
+          cpus: '2'         # Max 2 cores
+        reservations:
+          memory: 2G        # Mínimo garantizado
+          cpus: '1'
     
     # Acceso a hardware de audio
     devices:
