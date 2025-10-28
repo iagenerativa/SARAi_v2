@@ -8,7 +8,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}/llama-cpp-bin
+  IMAGE_NAME: iagenerativa/sarai_v2/llama-cpp-bin  # Lowercase (Docker requirement)
 
 jobs:
   build-and-push:
