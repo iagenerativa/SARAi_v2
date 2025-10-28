@@ -384,23 +384,91 @@ class SARAiOrchestrator:
     
     def _enhance_with_emotion(self, state: State) -> dict:
         """
-        Nodo: Modula la respuesta según la emoción detectada (v2.11 Fase 2)
+        Nodo: Modula la respuesta según la emoción detectada (M3.2 Fase 2)
         
-        Por ahora, pasa la respuesta sin modificar.
-        Implementación completa en Fase 2.
+        Pipeline:
+        1. Si detected_emotion existe → aplicar modulación
+        2. Usar emotion_modulator para ajustar tono
+        3. Retornar respuesta modulada
         """
-        # TODO M3.2 Fase 2: Implementar modulación con LFM2
-        return {"response": state["response"]}
+        # Si no hay emoción detectada, pasar sin modificar
+        if not state.get("detected_emotion"):
+            return {"response": state["response"]}
+        
+        try:
+            from agents.emotion_modulator import create_emotion_modulator
+            
+            print(f"😊 Modulando respuesta con emoción: {state['detected_emotion']}")
+            
+            # Obtener modulador
+            modulator = create_emotion_modulator()
+            
+            # Modular respuesta
+            modulated_response = modulator.modulate(
+                text=state["response"],
+                target_emotion=state["detected_emotion"]
+            )
+            
+            print(f"✅ Modulación aplicada")
+            
+            return {"response": modulated_response}
+        
+        except Exception as e:
+            print(f"⚠️ Error en modulación emocional: {e}")
+            # SENTINEL: Modulación falla → usar respuesta original
+            return {"response": state["response"]}
     
     def _generate_tts(self, state: State) -> dict:
         """
-        Nodo: Genera audio de respuesta con TTS (v2.11 Fase 3)
+        Nodo: Genera audio de respuesta con TTS (M3.2 Fase 3)
         
-        Por ahora, retorna None.
-        Implementación completa en Fase 3.
+        Pipeline:
+        1. Extraer estado emocional del state
+        2. Generar audio con TTSEngine (3-level fallback)
+        3. Aplicar prosody según emoción
+        4. Retornar audio_output
         """
-        # TODO M3.2 Fase 3: Implementar TTS prosody-aware
-        return {"audio_output": None}
+        try:
+            from agents.tts_engine import create_tts_engine
+            
+            print("🔊 Generando audio de respuesta...")
+            
+            # 1. Crear/obtener TTSEngine
+            tts_engine = create_tts_engine()
+            
+            # 2. Preparar estado emocional (si disponible)
+            emotion_state = None
+            if state.get("detected_emotion"):
+                try:
+                    from agents.emotion_integration import EmotionState
+                    
+                    # Mapeo de emoción string → EmotionState
+                    emotion_map = {
+                        "empático": EmotionState(label="joy", valence=0.8, arousal=0.6, dominance=0.7),
+                        "neutral": EmotionState(label="neutral", valence=0.5, arousal=0.5, dominance=0.5),
+                        "urgente": EmotionState(label="anger", valence=0.2, arousal=0.9, dominance=0.8),
+                    }
+                    emotion_state = emotion_map.get(state["detected_emotion"])
+                except ImportError:
+                    print("⚠️ emotion_integration no disponible, TTS sin prosody")
+            
+            # 3. Generar audio
+            tts_output = tts_engine.generate(
+                text=state["response"],
+                emotion_state=emotion_state
+            )
+            
+            # 4. Logging
+            print(f"✅ Audio generado: {tts_output.duration_ms}ms, "
+                  f"Prosody: {tts_output.prosody_applied}, "
+                  f"Cached: {tts_output.cached}")
+            
+            return {"audio_output": tts_output.audio_bytes}
+        
+        except Exception as e:
+            print(f"⚠️ Error en TTS: {e}")
+            # SENTINEL: TTS falla → continuar sin audio
+            return {"audio_output": None}
     
     def _route_to_tts(self, state: State) -> str:
         """Routing: Si audio_input existe → TTS, sino → skip"""
