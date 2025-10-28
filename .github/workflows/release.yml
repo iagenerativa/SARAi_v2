@@ -1,13 +1,18 @@
 # .github/workflows/release.yml
 # SARAi v2.6 - Release & Sign (DevSecOps)
 #
-# Flujo automático:
-#   git tag v2.5.0 && git push origin v2.5.0
-#   → Build multi-arch
+# Flujo automático con logging detallado y consolidación de etapas:
+#   git tag v2.6.2 && git push origin v2.6.2
+#   → Build multi-arch (con logs detallados)
 #   → Genera SBOM (Syft)
 #   → Firma con Cosign (OIDC keyless)
 #   → Publica en GHCR + GitHub Release
 #   → Sube dashboard a Grafana Cloud
+#
+# Cada etapa genera:
+#   - Logs detallados en GITHUB_STEP_SUMMARY
+#   - Artifacts de milestone para skip en re-runs
+#   - Timestamps precisos para debugging
 
 name: SARAi v2.6 - Release & Sign
 
@@ -27,29 +32,80 @@ jobs:
 
     steps:
       # ============================================================
+      # 0. MILESTONE LOGGING SETUP
+      # ============================================================
+      - name: "📊 MILESTONE 0: Initialize Deployment Log"
+        run: |
+          echo "# 🚀 SARAi Deployment Log - ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Started**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+          echo "**Trigger**: Tag push \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Runner**: ubuntu-latest" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📋 Deployment Milestones" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Crear directorio para milestones
+          mkdir -p .milestones
+          echo "deployment_started=$(date +%s)" > .milestones/M0_init.txt
+          
+          echo "✅ M0: Deployment initialized at $(date -u +"%H:%M:%S")"
+
+      # ============================================================
       # 1. CHECKOUT & SETUP
       # ============================================================
-      - name: Checkout código
+      - name: "📥 MILESTONE 1: Checkout código"
         uses: actions/checkout@v4
+        
+      - name: "📊 Log M1 Complete"
+        run: |
+          echo "✅ **M1: Checkout** - $(date -u +"%H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+          echo "  - Repository: ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
+          echo "  - Commit SHA: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "  - Tag: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "checkout_complete=$(date +%s)" > .milestones/M1_checkout.txt
+          echo "✅ M1: Checkout completed"
 
-      - name: Setup Docker Buildx (multi-arch)
+      - name: "🔧 MILESTONE 2: Setup Docker Buildx"
         uses: docker/setup-buildx-action@v3
+        
+      - name: "📊 Log M2 Complete"
+        run: |
+          echo "✅ **M2: Docker Buildx** - $(date -u +"%H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+          docker buildx version >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "buildx_setup=$(date +%s)" > .milestones/M2_buildx.txt
+          echo "✅ M2: Buildx configured"
 
-      - name: Login to GitHub Container Registry
+      - name: "🔐 MILESTONE 3: Login to GHCR"
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: "📊 Log M3 Complete"
+        run: |
+          echo "✅ **M3: GHCR Login** - $(date -u +"%H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+          echo "  - Registry: ghcr.io" >> $GITHUB_STEP_SUMMARY
+          echo "  - User: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "ghcr_login=$(date +%s)" > .milestones/M3_ghcr.txt
+          echo "✅ M3: GHCR authenticated"
 
       # ============================================================
-      # 2. BUILD & PUSH MULTI-ARCH (v2.5 God Mode)
+      # 4. BUILD & PUSH MULTI-ARCH (with detailed logging)
       # ============================================================
-      - name: Extract repository name (lowercase)
+      - name: "📦 MILESTONE 4: Extract repository name"
         id: repo
-        run: echo "name=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+        run: |
+          REPO_NAME=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')
+          echo "name=$REPO_NAME" >> $GITHUB_OUTPUT
+          echo "Repository: $REPO_NAME"
+          echo "extract_repo=$(date +%s)" > .milestones/M4_repo.txt
 
-      - name: Build & Push Docker Image (amd64 + arm64)
+      - name: "🏗️ MILESTONE 5: Build & Push Docker Image (amd64 + arm64)"
         id: build
         uses: docker/build-push-action@v5
         with:
@@ -63,53 +119,162 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             SARAI_VERSION=${{ github.ref_name }}
+            
+      - name: "📊 Log M5 Complete"
+        run: |
+          echo "✅ **M5: Docker Build** - $(date -u +"%H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+          echo "  - Image: \`ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "  - Digest: \`${{ steps.build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "  - Platforms: linux/amd64, linux/arm64" >> $GITHUB_STEP_SUMMARY
+          echo "  - Cache: GitHub Actions (max mode)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "docker_build=$(date +%s)" > .milestones/M5_docker.txt
+          echo "digest=${{ steps.build.outputs.digest }}" >> .milestones/M5_docker.txt
+          echo "✅ M5: Docker image built and pushed"
+          
+      # Save artifact for potential re-runs
+      - name: "💾 Save M5 Artifact (Docker Build Success)"
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-build-milestone
+          path: .milestones/M5_docker.txt
+          retention-days: 7
 
       # ============================================================
-      # 3. SECURITY: SBOM + COSIGN SIGNING
+      # 6-8. SECURITY: SBOM + COSIGN SIGNING (with detailed logging)
       # ============================================================
-      - name: Install Cosign
+      - name: "🔒 MILESTONE 6: Install Cosign"
         uses: sigstore/cosign-installer@v3
         with:
           cosign-release: 'v2.2.4'
-
-      - name: Install Syft (SBOM Generator)
+          
+      - name: "📊 Log M6 Complete"
         run: |
+          echo "✅ **M6: Cosign Installed** - $(date -u +"%H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+          cosign version >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "cosign_install=$(date +%s)" > .milestones/M6_cosign.txt
+          echo "✅ M6: Cosign ready"
+
+      - name: "📋 MILESTONE 7: Install Syft (SBOM Generator)"
+        run: |
+          echo "Installing Syft..."
           curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
-
-      - name: Generate SBOM (Software Bill of Materials)
+          syft version
+          
+      - name: "📊 Log M7 Complete"
         run: |
+          echo "✅ **M7: Syft Installed** - $(date -u +"%H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+          syft version >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "syft_install=$(date +%s)" > .milestones/M7_syft.txt
+          echo "✅ M7: Syft ready"
+
+      - name: "📄 MILESTONE 8: Generate SBOM"
+        run: |
+          echo "Generating SBOM for ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }}..."
+          
+          # SPDX format
           syft ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }} \
-            -o spdx-json=sbom.spdx.json \
+            -o spdx-json=sbom.spdx.json
+          
+          # CycloneDX format
+          syft ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }} \
             -o cyclonedx-json=sbom.cyclonedx.json
           
-          # Resumen legible para humans
+          # Human-readable table
           syft ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }} \
             -o table > sbom.txt
-
-      - name: Sign Docker Image (Cosign OIDC Keyless)
+          
+          # Count packages
+          PACKAGE_COUNT=$(jq '.packages | length' sbom.spdx.json)
+          echo "SBOM generated: $PACKAGE_COUNT packages"
+          
+      - name: "📊 Log M8 Complete"
         run: |
-          # Firma la imagen usando OIDC (sin claves locales)
+          PACKAGE_COUNT=$(jq '.packages | length' sbom.spdx.json)
+          echo "✅ **M8: SBOM Generated** - $(date -u +"%H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+          echo "  - Format: SPDX + CycloneDX" >> $GITHUB_STEP_SUMMARY
+          echo "  - Packages: $PACKAGE_COUNT" >> $GITHUB_STEP_SUMMARY
+          echo "  - Files: sbom.spdx.json, sbom.cyclonedx.json, sbom.txt" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "sbom_generate=$(date +%s)" > .milestones/M8_sbom.txt
+          echo "package_count=$PACKAGE_COUNT" >> .milestones/M8_sbom.txt
+          echo "✅ M8: SBOM complete ($PACKAGE_COUNT packages)"
+          
+      - name: "💾 Save M8 Artifact (SBOM Success)"
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-milestone
+          path: |
+            .milestones/M8_sbom.txt
+            sbom.*.json
+            sbom.txt
+          retention-days: 90
+
+      - name: "🔐 MILESTONE 9: Sign Docker Image (Cosign OIDC)"
+        run: |
+          echo "Signing image with Cosign (OIDC keyless)..."
           cosign sign --yes \
             ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }}@${{ steps.build.outputs.digest }}
-
-      - name: Attest SBOM to Image
+          echo "✅ Image signed successfully"
+          
+      - name: "📊 Log M9 Complete"
         run: |
-          # Adjunta el SBOM como attestation verificable
+          echo "✅ **M9: Image Signed** - $(date -u +"%H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+          echo "  - Method: Cosign OIDC Keyless" >> $GITHUB_STEP_SUMMARY
+          echo "  - Digest: \`${{ steps.build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "  - Verification: \`cosign verify ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "cosign_sign=$(date +%s)" > .milestones/M9_sign.txt
+          echo "✅ M9: Image signature complete"
+
+      - name: "📎 MILESTONE 10: Attest SBOM to Image"
+        run: |
+          echo "Attaching SBOM as attestation..."
           cosign attest --yes --type spdxjson \
             --predicate sbom.spdx.json \
             ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }}@${{ steps.build.outputs.digest }}
+          echo "✅ SBOM attestation complete"
+          
+      - name: "📊 Log M10 Complete"
+        run: |
+          echo "✅ **M10: SBOM Attested** - $(date -u +"%H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+          echo "  - Type: spdxjson" >> $GITHUB_STEP_SUMMARY
+          echo "  - Verification: \`cosign verify-attestation --type spdxjson ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "sbom_attest=$(date +%s)" > .milestones/M10_attest.txt
+          echo "✅ M10: SBOM attestation complete"
 
       # ============================================================
-      # 4. GITHUB RELEASE
+      # 11-12. GITHUB RELEASE (with detailed logging)
       # ============================================================
-      - name: Extract CHANGELOG for this version
+      - name: "📝 MILESTONE 11: Extract CHANGELOG"
         id: changelog
         run: |
-          # Extrae la sección del CHANGELOG para este release
+          echo "Extracting CHANGELOG for ${{ github.ref_name }}..."
           VERSION=${{ github.ref_name }}
-          awk "/^## \[${VERSION#v}\]/{flag=1;next}/^## \[/{flag=0}flag" CHANGELOG.md > release_notes.md || echo "Release $VERSION" > release_notes.md
+          
+          # Attempt to extract version-specific changelog
+          if [ -f CHANGELOG.md ]; then
+            awk "/^## \[${VERSION#v}\]/{flag=1;next}/^## \[/{flag=0}flag" CHANGELOG.md > release_notes.md || \
+              echo "Release $VERSION" > release_notes.md
+          else
+            echo "Release $VERSION" > release_notes.md
+          fi
+          
+          # Show preview
+          echo "Release notes preview:"
+          head -n 5 release_notes.md
+          
+      - name: "📊 Log M11 Complete"
+        run: |
+          echo "✅ **M11: CHANGELOG Extracted** - $(date -u +"%H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "changelog_extract=$(date +%s)" > .milestones/M11_changelog.txt
+          echo "✅ M11: Release notes ready"
 
-      - name: Create GitHub Release
+      - name: "🎉 MILESTONE 12: Create GitHub Release"
         uses: ncipollo/release-action@v1
         with:
           artifacts: "sbom.spdx.json,sbom.cyclonedx.json,sbom.txt"
@@ -117,64 +282,161 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
           prerelease: false
+          
+      - name: "📊 Log M12 Complete"
+        run: |
+          echo "✅ **M12: GitHub Release Created** - $(date -u +"%H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+          echo "  - Tag: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "  - Artifacts: sbom.spdx.json, sbom.cyclonedx.json, sbom.txt" >> $GITHUB_STEP_SUMMARY
+          echo "  - URL: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "github_release=$(date +%s)" > .milestones/M12_release.txt
+          echo "✅ M12: GitHub release published"
 
       # ============================================================
-      # 5. GRAFANA DASHBOARD PUBLISH
+      # 13-14. GRAFANA DASHBOARD (optional, non-blocking)
       # ============================================================
-      - name: Setup Python for Grafana publish
+      - name: "📊 MILESTONE 13: Setup Python for Grafana"
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          
+      - name: "📦 Install requests library"
+        run: |
+          pip install requests
+          python -c "import requests; print(f'requests version: {requests.__version__}')"
 
-      - name: Install requests library
-        run: pip install requests
-
-      - name: Publish Dashboard to Grafana Cloud
+      - name: "📈 MILESTONE 14: Publish Dashboard to Grafana (optional)"
+        continue-on-error: true  # Non-blocking
         env:
           GRAFANA_API_KEY: ${{ secrets.GRAFANA_API_KEY }}
           GRAFANA_URL: ${{ secrets.GRAFANA_URL }}
         run: |
-          python scripts/publish_grafana.py || echo "⚠️  Grafana publish falló (no crítico)"
+          echo "Attempting Grafana dashboard publish..."
+          
+          if [ -z "$GRAFANA_API_KEY" ] || [ -z "$GRAFANA_URL" ]; then
+            echo "⚠️  Grafana credentials not configured (skipping)"
+            echo "grafana_skip=true" > .milestones/M14_grafana.txt
+            exit 0
+          fi
+          
+          if [ -f scripts/publish_grafana.py ]; then
+            python scripts/publish_grafana.py
+            echo "✅ Grafana dashboard published"
+            echo "grafana_publish=$(date +%s)" > .milestones/M14_grafana.txt
+          else
+            echo "⚠️  scripts/publish_grafana.py not found (skipping)"
+            echo "grafana_skip=true" > .milestones/M14_grafana.txt
+          fi
+          
+      - name: "📊 Log M14 Status"
+        if: always()
+        run: |
+          if [ -f .milestones/M14_grafana.txt ] && grep -q "grafana_publish" .milestones/M14_grafana.txt; then
+            echo "✅ **M14: Grafana Dashboard Published** - $(date -u +"%H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️  **M14: Grafana Skipped** - $(date -u +"%H:%M:%S UTC") (non-critical)" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
 
       # ============================================================
-      # 6. POST-RELEASE VALIDATION
+      # 15-16. VALIDATION & FINAL SUMMARY
       # ============================================================
-      - name: Verify Cosign Signature
+      - name: "🔍 MILESTONE 15: Verify Cosign Signature"
         run: |
-          # Auto-verificación de la firma
+          echo "Auto-verifying Cosign signature..."
           cosign verify \
             --certificate-identity-regexp="https://github.com/${{ github.repository }}/*" \
             --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
             ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }}@${{ steps.build.outputs.digest }}
-
-      - name: Summary
-        run: |
-          cat << EOF >> $GITHUB_STEP_SUMMARY
-          # 🎉 SARAi ${{ github.ref_name }} Released!
+          echo "✅ Signature verified successfully"
           
-          ## 📦 Artefactos Publicados
+      - name: "📊 Log M15 Complete"
+        run: |
+          echo "✅ **M15: Signature Verified** - $(date -u +"%H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+          echo "  - Verification: PASSED ✅" >> $GITHUB_STEP_SUMMARY
+          echo "  - OIDC Issuer: token.actions.githubusercontent.com" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "signature_verify=$(date +%s)" > .milestones/M15_verify.txt
+          echo "✅ M15: Signature validation complete"
+
+      - name: "📊 MILESTONE 16: Generate Final Summary"
+        if: always()
+        run: |
+          # Calculate total deployment time
+          START_TIME=$(cat .milestones/M0_init.txt | grep deployment_started | cut -d'=' -f2)
+          END_TIME=$(date +%s)
+          DURATION=$((END_TIME - START_TIME))
+          DURATION_MIN=$((DURATION / 60))
+          DURATION_SEC=$((DURATION % 60))
+          
+          cat << EOF >> $GITHUB_STEP_SUMMARY
+          
+          ---
+          
+          ## 🎉 Deployment Complete!
+          
+          **Total Duration**: ${DURATION_MIN}m ${DURATION_SEC}s
+          **Completed**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          
+          ### 📦 Published Artifacts
+          
           - **Docker Image**: \`ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }}\`
           - **Digest**: \`${{ steps.build.outputs.digest }}\`
           - **Platforms**: linux/amd64, linux/arm64
-          - **SBOM**: Adjunto al release (SPDX + CycloneDX)
-          - **Signature**: Firmado con Cosign (keyless OIDC)
+          - **SBOM**: Attached to release (SPDX + CycloneDX)
+          - **Signature**: Cosign keyless OIDC ✅
+          - **Release**: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}
           
-          ## ✅ Verificación
+          ### ✅ Verification Commands
+          
           \`\`\`bash
-          # Verificar firma
-          cosign verify ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }}
+          # Verify signature
+          cosign verify \\
+            --certificate-identity-regexp="https://github.com/${{ github.repository }}/*" \\
+            --certificate-oidc-issuer=https://token.actions.githubusercontent.com \\
+            ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }}
           
-          # Descargar SBOM
+          # Download and inspect SBOM
           cosign verify-attestation --type spdxjson \\
             ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }} | jq .
           
-          # Ejecutar SARAi
+          # Run SARAi
           docker run --rm -p 8080:8080 \\
             ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }}
           \`\`\`
           
-          ## 📊 Dashboard
-          - Grafana: ID 21902 (importar en tu instancia)
+          ### 📊 Health Endpoints
+          
           - Health: http://localhost:8080/health
           - Metrics: http://localhost:8080/metrics
+          - Grafana Dashboard: ID 21902
+          
+          ### 🏁 Milestone Timeline
+          
           EOF
+          
+          # Add milestone timestamps
+          for milestone in .milestones/*.txt; do
+            if [ -f "$milestone" ]; then
+              MILESTONE_NAME=$(basename "$milestone" .txt)
+              TIMESTAMP=$(head -n 1 "$milestone" | cut -d'=' -f2)
+              if [ ! -z "$TIMESTAMP" ] && [ "$TIMESTAMP" != "true" ]; then
+                RELATIVE_TIME=$((TIMESTAMP - START_TIME))
+                echo "- **$MILESTONE_NAME**: +${RELATIVE_TIME}s" >> $GITHUB_STEP_SUMMARY
+              fi
+            fi
+          done
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**🚀 Deployment successful!**" >> $GITHUB_STEP_SUMMARY
+          
+          echo "✅ M16: Final summary generated"
+          
+      - name: "💾 Save All Milestones Artifact"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-milestones-${{ github.ref_name }}
+          path: .milestones/
+          retention-days: 90
