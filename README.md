@@ -4,6 +4,8 @@
 
 SARAi combina razonamiento técnico profundo con inteligencia emocional, usando Tiny Recursive Models (TRM) para clasificación de intenciones y un Meta Control Plane (MCP) adaptativo que aprende continuamente sin supervisión humana.
 
+**Orquestado 100% con LangGraph** (StateGraph + routing condicional + feedback loops).
+
 **v2.7 (El Agente Autónomo)**: MoE real + Batching inteligente + Auto-tuning online + Auditoría inmutable + Zero-trust supply chain.
 
 ## 🎯 KPIs de Producción v2.7
@@ -228,6 +230,34 @@ python main.py
 | `make clean` | Limpia logs, cache y .pyc | <1 min |
 | `make distclean` | Limpieza total (incluye venv y GGUFs) | <1 min |
 | `make help` | Muestra ayuda de todos los targets | - |
+
+## 🛠️ Tecnologías Core
+
+### Orquestación
+- **LangGraph**: StateGraph para flujo completo (classify → mcp → route → generate → feedback)
+- **LangChain**: Abstracciones core (Runnable protocol, embeddings)
+- **TypedDict**: Estado tipado compartido entre nodos
+
+### Modelos LLM
+- **SOLAR-10.7B**: Expert tier (razonamiento técnico)
+- **LFM2-1.2B**: Tiny tier (soft-skills + modulación)
+- **Qwen2.5-Omni-7B**: Multimodal (audio/visión)
+- **EmbeddingGemma-300M**: Embeddings semánticos
+
+### Backend CPU
+- **llama-cpp-python**: GGUF Q4_K_M (10x más rápido que transformers)
+- **ONNX Runtime**: Optimización de modelos pequeños
+- **PyTorch**: TRM-Router + TRM-Mini (clasificación)
+
+### Infraestructura
+- **Docker**: Multi-stage builds, hardening kernel-level
+- **GitHub Actions**: CI/CD con Cosign signing + SBOM
+- **Prometheus**: Métricas /metrics endpoint
+- **Grafana**: Dashboard de producción
+
+**Documentación completa de LangGraph**: [`docs/LANGGRAPH_ARCHITECTURE.md`](docs/LANGGRAPH_ARCHITECTURE.md)
+
+---
 
 ## 🏥 Health Dashboard
 
