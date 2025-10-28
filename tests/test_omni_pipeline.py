@@ -12,6 +12,7 @@ Valida el comportamiento del motor de voz Qwen2.5-Omni-3B:
 
 import pytest
 import os
+import sys
 import numpy as np
 from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
@@ -25,7 +26,7 @@ if 'onnxruntime' not in sys.modules:
 from agents.omni_pipeline import (
     OmniSentinelEngine,
     AudioAuditLogger,
-    process_audio_stream,
+    # process_audio_stream,  # TODO: Implementar función helper
     SENTINEL_AUDIO_RESPONSES,
     TARGET_LATENCY_MS,
     SAMPLE_RATE

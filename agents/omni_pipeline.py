@@ -64,7 +64,8 @@ except ImportError:
     sys.exit(1)
 
 # Core SARAi
-from core.audit import is_safe_mode, get_web_audit_logger
+from core.audit import is_safe_mode
+from core.web_audit import get_web_audit_logger
 
 # ============================================================================
 # CONFIGURACIÓN
