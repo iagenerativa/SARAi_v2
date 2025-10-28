@@ -104,40 +104,127 @@ jobs:
           echo "Repository: $REPO_NAME"
           echo "extract_repo=$(date +%s)" > .milestones/M4_repo.txt
 
-      - name: "🏗️ MILESTONE 5: Build & Push Docker Image (amd64 + arm64)"
-        id: build
+      # ============================================================
+      # 5A. BUILD AMD64 (separated for resource optimization)
+      # ============================================================
+      - name: "🏗️ MILESTONE 5A: Build & Push AMD64 Image"
+        id: build_amd64
         uses: docker/build-push-action@v5
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: true
           tags: |
-            ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }}
-            ghcr.io/${{ steps.repo.outputs.name }}:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+            ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }}-amd64
+          cache-from: type=gha,scope=amd64
+          cache-to: type=gha,mode=max,scope=amd64
           build-args: |
             SARAI_VERSION=${{ github.ref_name }}
             
-      - name: "📊 Log M5 Complete"
+      - name: "📊 Log M5A Complete"
         run: |
-          echo "✅ **M5: Docker Build** - $(date -u +"%H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **M5A: AMD64 Build** - $(date -u +"%H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+          echo "  - Image: \`ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }}-amd64\`" >> $GITHUB_STEP_SUMMARY
+          echo "  - Digest: \`${{ steps.build_amd64.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "docker_build_amd64=$(date +%s)" > .milestones/M5A_amd64.txt
+          echo "digest_amd64=${{ steps.build_amd64.outputs.digest }}" >> .milestones/M5A_amd64.txt
+          echo "✅ M5A: AMD64 image built and pushed"
+      
+      # Clean docker cache after AMD64 build
+      - name: "🧹 Clean Docker Cache (post-AMD64)"
+        run: |
+          echo "Cleaning Docker system after AMD64 build..."
+          docker system prune -af --volumes
+          echo "✅ Docker cache cleaned"
+          
+      # ============================================================
+      # 5B. BUILD ARM64 (separated for resource optimization)
+      # ============================================================
+      - name: "🏗️ MILESTONE 5B: Build & Push ARM64 Image"
+        id: build_arm64
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }}-arm64
+          cache-from: type=gha,scope=arm64
+          cache-to: type=gha,mode=max,scope=arm64
+          build-args: |
+            SARAI_VERSION=${{ github.ref_name }}
+            
+      - name: "📊 Log M5B Complete"
+        run: |
+          echo "✅ **M5B: ARM64 Build** - $(date -u +"%H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+          echo "  - Image: \`ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }}-arm64\`" >> $GITHUB_STEP_SUMMARY
+          echo "  - Digest: \`${{ steps.build_arm64.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "docker_build_arm64=$(date +%s)" > .milestones/M5B_arm64.txt
+          echo "digest_arm64=${{ steps.build_arm64.outputs.digest }}" >> .milestones/M5B_arm64.txt
+          echo "✅ M5B: ARM64 image built and pushed"
+      
+      # Clean docker cache after ARM64 build
+      - name: "🧹 Clean Docker Cache (post-ARM64)"
+        run: |
+          echo "Cleaning Docker system after ARM64 build..."
+          docker system prune -af --volumes
+          echo "✅ Docker cache cleaned"
+      
+      # ============================================================
+      # 5C. CREATE MULTI-ARCH MANIFEST (combines AMD64 + ARM64)
+      # ============================================================
+      - name: "📦 MILESTONE 5C: Create Multi-Arch Manifest"
+        id: build
+        run: |
+          echo "Creating multi-arch manifest..."
+          
+          # Create and push manifest list
+          docker buildx imagetools create -t ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }} \
+            ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }}-amd64 \
+            ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }}-arm64
+          
+          docker buildx imagetools create -t ghcr.io/${{ steps.repo.outputs.name }}:latest \
+            ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }}-amd64 \
+            ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }}-arm64
+          
+          # Get manifest digest
+          DIGEST=$(docker buildx imagetools inspect ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }} --format '{{.Manifest.Digest}}')
+          echo "digest=$DIGEST" >> $GITHUB_OUTPUT
+          
+          echo "✅ Multi-arch manifest created with digest: $DIGEST"
+          
+      - name: "📊 Log M5C Complete"
+        run: |
+          echo "✅ **M5C: Multi-Arch Manifest** - $(date -u +"%H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
           echo "  - Image: \`ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
           echo "  - Digest: \`${{ steps.build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
           echo "  - Platforms: linux/amd64, linux/arm64" >> $GITHUB_STEP_SUMMARY
-          echo "  - Cache: GitHub Actions (max mode)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "docker_build=$(date +%s)" > .milestones/M5_docker.txt
-          echo "digest=${{ steps.build.outputs.digest }}" >> .milestones/M5_docker.txt
-          echo "✅ M5: Docker image built and pushed"
+          echo "docker_manifest=$(date +%s)" > .milestones/M5C_manifest.txt
+          echo "digest=${{ steps.build.outputs.digest }}" >> .milestones/M5C_manifest.txt
+          echo "✅ M5C: Multi-arch manifest complete"
           
       # Save artifact for potential re-runs
-      - name: "💾 Save M5 Artifact (Docker Build Success)"
+      - name: "💾 Save M5C Artifact (Docker Build Success)"
         uses: actions/upload-artifact@v4
         with:
           name: docker-build-milestone
-          path: .milestones/M5_docker.txt
+          path: |
+            .milestones/M5A_amd64.txt
+            .milestones/M5B_arm64.txt
+            .milestones/M5C_manifest.txt
           retention-days: 7
+      
+      # Final cleanup before SBOM/signing
+      - name: "🧹 Final Docker Cleanup (pre-SBOM)"
+        run: |
+          echo "Final cleanup before SBOM generation..."
+          docker system prune -af --volumes
+          docker buildx prune -af
+          echo "✅ All temporary Docker artifacts cleaned"
+          df -h  # Show disk space
 
       # ============================================================
       # 6-8. SECURITY: SBOM + COSIGN SIGNING (with detailed logging)

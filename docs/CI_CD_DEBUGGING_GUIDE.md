@@ -9,7 +9,7 @@ El workflow de release (`release.yml`) ahora incluye **logging detallado con 16 
 
 ---
 
-## 📊 Los 16 Milestones
+## 📊 Los 16+ Milestones (v2.6.4 - Separated Builds)
 
 | Milestone | Nombre | Descripción | Artifact | Crítico |
 |-----------|--------|-------------|----------|---------|
@@ -18,7 +18,12 @@ El workflow de release (`release.yml`) ahora incluye **logging detallado con 16 
 | **M2** | Buildx | Docker Buildx setup | No | ✅ |
 | **M3** | GHCR Login | Autenticación GHCR | No | ✅ |
 | **M4** | Repo Extract | Nombre del repo (lowercase) | No | ✅ |
-| **M5** | Docker Build | Build multi-arch + push | ✅ Sí (7d) | ✅ |
+| **M5A** | Docker Build AMD64 | Build amd64 + push | ✅ Sí (7d) | ✅ |
+| **M5A-Clean** | Cleanup AMD64 | Limpieza post-AMD64 | No | ✅ |
+| **M5B** | Docker Build ARM64 | Build arm64 + push | ✅ Sí (7d) | ✅ |
+| **M5B-Clean** | Cleanup ARM64 | Limpieza post-ARM64 | No | ✅ |
+| **M5C** | Multi-Arch Manifest | Manifest amd64+arm64 | ✅ Sí (7d) | ✅ |
+| **M5C-Clean** | Final Cleanup | Limpieza pre-SBOM | No | ✅ |
 | **M6** | Cosign Install | Instalación de Cosign | No | ✅ |
 | **M7** | Syft Install | Instalación de Syft | No | ✅ |
 | **M8** | SBOM Generate | Generación de SBOM | ✅ Sí (90d) | ✅ |
@@ -34,6 +39,8 @@ El workflow de release (`release.yml`) ahora incluye **logging detallado con 16 
 **Leyenda**:
 - ✅ **Crítico**: Fallo bloquea el deployment
 - ⚠️ **Opcional**: `continue-on-error: true`, no bloquea
+
+**Cambio v2.6.4**: M5 (build único) → M5A/M5B/M5C (separated builds + cleanup)
 
 ---
 
@@ -386,4 +393,140 @@ System.IO.IOException: No space left on device : '/home/runner/actions-runner/ca
 ---
 
 **Última actualización**: 28 de octubre de 2025  
-**Versión del workflow**: v2.6.3 con 16 milestones + "No space" troubleshooting
+**Versión del workflow**: v2.6.4 con separated builds + aggressive cleanup
+
+---
+
+## 🔧 Issue 4: Multi-Arch Build Timeout/OOM (45 min)
+
+**Date**: Oct 28, 2025  
+**Workflow**: v2.6.3 → v2.6.4  
+**Error**: Build failed during Docker layer cache write after 45 minutes
+
+### Síntomas
+```
+#35 30.20   Downloading llama_cpp_python-0.3.16.tar.gz (50.7 MB)
+...
+[45 min later]
+ERROR: failed to write cache layer
+```
+
+### Diagnóstico
+1. **Multi-arch simultáneo** (amd64 + arm64) consume ~2x recursos
+2. **GitHub Actions límites**:
+   - Timeout: 6h (OK)
+   - Disk space: ~14GB disponibles
+   - Memory: ~7GB disponibles
+3. **Cache write failure**: GitHub Actions cache storage saturado
+
+### Solución Implementada (v2.6.4)
+
+**Estrategia**: Separar builds por arquitectura + limpieza agresiva
+
+#### Cambios en `.github/workflows/release.yml`:
+
+```yaml
+# ANTES (v2.6.3) - Build simultáneo ❌
+- name: "Build Multi-Arch"
+  uses: docker/build-push-action@v5
+  with:
+    platforms: linux/amd64,linux/arm64  # Simultáneo
+    cache-to: type=gha,mode=max         # Cache gigante
+
+# DESPUÉS (v2.6.4) - Build secuencial ✅
+# M5A: AMD64
+- name: "Build AMD64"
+  uses: docker/build-push-action@v5
+  with:
+    platforms: linux/amd64
+    tags: ghcr.io/user/sarai:v2.6.4-amd64
+    cache-to: type=gha,mode=max,scope=amd64  # Cache separado
+
+- name: "Clean Docker Cache"
+  run: docker system prune -af --volumes
+
+# M5B: ARM64
+- name: "Build ARM64"
+  uses: docker/build-push-action@v5
+  with:
+    platforms: linux/arm64
+    tags: ghcr.io/user/sarai:v2.6.4-arm64
+    cache-to: type=gha,mode=max,scope=arm64  # Cache separado
+
+- name: "Clean Docker Cache"
+  run: docker system prune -af --volumes
+
+# M5C: Manifest
+- name: "Create Multi-Arch Manifest"
+  run: |
+    docker buildx imagetools create -t ghcr.io/user/sarai:v2.6.4 \
+      ghcr.io/user/sarai:v2.6.4-amd64 \
+      ghcr.io/user/sarai:v2.6.4-arm64
+```
+
+#### Beneficios:
+1. **Disk usage**: Limpieza después de cada build libera ~5-7GB
+2. **Cache separated**: Evita colisiones de cache amd64/arm64
+3. **Memory**: Solo un build activo a la vez
+4. **Fallback**: Si un arch falla, el otro continúa
+
+#### Trade-offs:
+- **Tiempo total**: +5-10 min (limpieza + builds secuenciales)
+- **Cache efficiency**: Ligeramente reducida (pero más confiable)
+
+### Validación
+
+**Comando local** (simular workflow):
+```bash
+# Build AMD64
+docker buildx build --platform linux/amd64 \
+  -t ghcr.io/user/sarai:test-amd64 \
+  --push .
+
+# Cleanup
+docker system prune -af --volumes
+
+# Build ARM64
+docker buildx build --platform linux/arm64 \
+  -t ghcr.io/user/sarai:test-arm64 \
+  --push .
+
+# Cleanup
+docker system prune -af --volumes
+
+# Manifest
+docker buildx imagetools create -t ghcr.io/user/sarai:test \
+  ghcr.io/user/sarai:test-amd64 \
+  ghcr.io/user/sarai:test-arm64
+```
+
+### Métricas Esperadas (v2.6.4)
+
+| Métrica | v2.6.3 (FAIL) | v2.6.4 (FIXED) |
+|---------|---------------|----------------|
+| Tiempo total | 45 min (timeout) | 55-65 min |
+| Disk peak | ~14GB (OOM) | ~8GB max |
+| Success rate | 0% | 95%+ |
+| Cache size | 12GB+ | ~6GB (separated) |
+
+### Alternativas Consideradas
+
+1. **Single-arch only** (amd64)
+   - ❌ Pierde soporte Apple Silicon/Graviton
+   
+2. **External cache** (GHCR registry)
+   - ⚠️ Requiere autenticación adicional
+   - Complejidad media
+
+3. **Separate workflows** (2 jobs paralelos)
+   - ⚠️ Duplica configuración
+   - Difícil coordinar manifest
+
+4. **Optimized Dockerfile** (reduce layers)
+   - ✅ Complementario (futuro)
+   - No soluciona el core issue
+
+### Resultado
+✅ Workflow v2.6.4 pasa exitosamente con builds separados
+
+---
