@@ -215,6 +215,108 @@ class TestHelperFunctions:
         assert modulator.modulation_strength == 0.5
         assert modulator.min_confidence_threshold == 0.7
         assert isinstance(modulator, EmotionModulator)
+    
+    def test_blend_emotion_vectors(self):
+        """Test combinación de vectores emocionales"""
+        from agents.emotion_modulator import blend_emotion_vectors
+        
+        # Vectores sintéticos normalizados
+        vec_happy = np.random.randn(768).astype(np.float32)
+        vec_happy = vec_happy / np.linalg.norm(vec_happy)
+        
+        vec_excited = np.random.randn(768).astype(np.float32)
+        vec_excited = vec_excited / np.linalg.norm(vec_excited)
+        
+        vectors = {
+            EmotionCategory.HAPPY: vec_happy,
+            EmotionCategory.EXCITED: vec_excited
+        }
+        
+        weights = {
+            EmotionCategory.HAPPY: 0.7,
+            EmotionCategory.EXCITED: 0.3
+        }
+        
+        blended = blend_emotion_vectors(vectors, weights)
+        
+        # Verificar dimensiones
+        assert blended.shape == (768,)
+        
+        # Verificar normalización
+        assert np.isclose(np.linalg.norm(blended), 1.0, atol=1e-5)
+    
+    def test_blend_emotion_vectors_missing_vector(self):
+        """Test blend con emoción sin vector (debe fallar)"""
+        from agents.emotion_modulator import blend_emotion_vectors
+        
+        vectors = {EmotionCategory.HAPPY: np.random.randn(768)}
+        weights = {
+            EmotionCategory.HAPPY: 0.5,
+            EmotionCategory.SAD: 0.5  # ❌ No tiene vector
+        }
+        
+        with pytest.raises(ValueError, match="no tiene vector"):
+            blend_emotion_vectors(vectors, weights)
+    
+    def test_analyze_emotion_trajectory_basic(self):
+        """Test análisis de trayectoria emocional"""
+        from agents.emotion_modulator import analyze_emotion_trajectory
+        
+        # Crear secuencia de perfiles
+        profiles = [
+            EmotionProfile(EmotionCategory.NEUTRAL, intensity=0.3, confidence=0.7),
+            EmotionProfile(EmotionCategory.HAPPY, intensity=0.6, confidence=0.8),
+            EmotionProfile(EmotionCategory.HAPPY, intensity=0.7, confidence=0.9),
+            EmotionProfile(EmotionCategory.EXCITED, intensity=0.8, confidence=0.85),
+            EmotionProfile(EmotionCategory.EXCITED, intensity=0.9, confidence=0.9),
+        ]
+        
+        trajectory = analyze_emotion_trajectory(profiles)
+        
+        # Verificar estructura
+        assert "dominant_emotion" in trajectory
+        assert "avg_intensity" in trajectory
+        assert "volatility" in trajectory
+        assert "trend" in trajectory
+        
+        # Verificar valores lógicos
+        assert trajectory["dominant_emotion"] in [EmotionCategory.HAPPY, EmotionCategory.EXCITED]
+        assert 0.0 <= trajectory["avg_intensity"] <= 1.0
+        assert trajectory["trend"] in ["escalating", "de-escalating", "stable"]
+    
+    def test_analyze_emotion_trajectory_escalating(self):
+        """Test detección de tendencia escalating"""
+        from agents.emotion_modulator import analyze_emotion_trajectory
+        
+        # Secuencia con intensidad creciente
+        profiles = [
+            EmotionProfile(EmotionCategory.CALM, intensity=0.2, confidence=0.7),
+            EmotionProfile(EmotionCategory.CALM, intensity=0.3, confidence=0.7),
+            EmotionProfile(EmotionCategory.CALM, intensity=0.4, confidence=0.7),
+            EmotionProfile(EmotionCategory.CALM, intensity=0.5, confidence=0.7),
+            EmotionProfile(EmotionCategory.CALM, intensity=0.6, confidence=0.7),
+            EmotionProfile(EmotionCategory.ANGRY, intensity=0.7, confidence=0.8),
+            EmotionProfile(EmotionCategory.ANGRY, intensity=0.8, confidence=0.9),
+            EmotionProfile(EmotionCategory.ANGRY, intensity=0.9, confidence=0.9),
+            EmotionProfile(EmotionCategory.ANGRY, intensity=0.95, confidence=0.95),
+            EmotionProfile(EmotionCategory.ANGRY, intensity=1.0, confidence=1.0),
+        ]
+        
+        trajectory = analyze_emotion_trajectory(profiles, window_size=5)
+        
+        assert trajectory["trend"] == "escalating"
+        assert trajectory["avg_intensity"] > 0.5
+    
+    def test_analyze_emotion_trajectory_empty(self):
+        """Test trayectoria con lista vacía"""
+        from agents.emotion_modulator import analyze_emotion_trajectory
+        
+        trajectory = analyze_emotion_trajectory([])
+        
+        assert trajectory["dominant_emotion"] == EmotionCategory.NEUTRAL
+        assert trajectory["avg_intensity"] == 0.0
+        assert trajectory["volatility"] == 0.0
+        assert trajectory["trend"] == "stable"
 
 
 # ============================================

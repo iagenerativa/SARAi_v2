@@ -182,56 +182,111 @@ class EmotionModulator:
         text: Optional[str] = None
     ) -> EmotionProfile:
         """
-        Detecta emoción del audio
+        Detecta emoción del audio con heurísticas mejoradas
         
         Args:
-            audio_features: Features extraídos del audio (e.g., mel-spectrogram)
-            text: Transcripción del audio (opcional, para multi-modal)
+            audio_features: Features extraídos del audio (e.g., mel-spectrogram, waveform)
+            text: Transcripción del audio (opcional, para análisis multi-modal)
         
         Returns:
             EmotionProfile con emoción detectada + confianza
         
-        Note:
-            Implementación actual usa heurísticas simples.
-            TODO: Integrar modelo pre-entrenado (emoDBert, WavLM-emotion, etc.)
-        """
-        # FASE 1: Heurística simple basada en energía del audio
-        # TODO: Reemplazar con modelo real en Fase 2
+        Algorithm (Fase 1 - Heurísticas):
+            1. Extrae características acústicas (energía, ZCR, espectral)
+            2. Analiza texto si disponible (keywords emocionales)
+            3. Combina scores acústicos + textuales
+            4. Selecciona emoción primaria + secundaria (si aplica)
         
-        # Calcular estadísticas del audio
+        Note:
+            Fase 2 integrará modelo pre-entrenado (emoDBert, WavLM-emotion)
+        """
+        # PASO 1: Características acústicas
         mean_energy = np.mean(np.abs(audio_features))
         max_energy = np.max(np.abs(audio_features))
         std_energy = np.std(audio_features)
         
-        # Heurística básica (placeholder)
-        if max_energy > 0.7:
-            primary = EmotionCategory.EXCITED
-            intensity = 0.8
-            confidence = 0.6
-        elif mean_energy < 0.2:
-            primary = EmotionCategory.SAD
-            intensity = 0.5
-            confidence = 0.6
-        elif std_energy > 0.3:
-            primary = EmotionCategory.ANGRY
-            intensity = 0.7
-            confidence = 0.5
-        else:
-            primary = EmotionCategory.NEUTRAL
-            intensity = 0.3
-            confidence = 0.7
+        # Zero-Crossing Rate (correlación con pitch/excitación)
+        zcr = np.mean(np.abs(np.diff(np.sign(audio_features)))) / 2.0
         
-        # Mock de scores (para compatibilidad con tests)
-        raw_scores = {
-            primary: confidence,
-            EmotionCategory.NEUTRAL: 1.0 - confidence
-        }
+        # Inicializar scores
+        emotion_scores = {e: 0.0 for e in EmotionCategory}
+        
+        # HEURÍSTICA 1: Energía alta → Excited/Angry
+        if max_energy > 0.7:
+            emotion_scores[EmotionCategory.EXCITED] += 0.6
+            emotion_scores[EmotionCategory.ANGRY] += 0.3 * (std_energy / 0.5)
+        
+        # HEURÍSTICA 2: Energía baja → Sad/Calm
+        elif mean_energy < 0.2:
+            emotion_scores[EmotionCategory.SAD] += 0.5
+            emotion_scores[EmotionCategory.CALM] += 0.3
+        
+        # HEURÍSTICA 3: Alta varianza → Angry/Fearful
+        if std_energy > 0.3:
+            emotion_scores[EmotionCategory.ANGRY] += 0.4
+            emotion_scores[EmotionCategory.FEARFUL] += 0.2
+        
+        # HEURÍSTICA 4: ZCR alto → Excited/Surprised
+        if zcr > 0.15:
+            emotion_scores[EmotionCategory.EXCITED] += 0.3
+            emotion_scores[EmotionCategory.SURPRISED] += 0.2
+        
+        # PASO 2: Análisis textual (si disponible)
+        if text:
+            text_lower = text.lower()
+            
+            # Keywords emocionales (básico)
+            emotion_keywords = {
+                EmotionCategory.HAPPY: ["feliz", "alegre", "contento", "genial", "happy", "great"],
+                EmotionCategory.SAD: ["triste", "deprimido", "mal", "sad", "depressed"],
+                EmotionCategory.ANGRY: ["enojado", "furioso", "molesto", "angry", "mad"],
+                EmotionCategory.FEARFUL: ["miedo", "asustado", "nervioso", "scared", "afraid"],
+                EmotionCategory.SURPRISED: ["sorprendido", "wow", "increíble", "surprised"],
+                EmotionCategory.CALM: ["tranquilo", "relajado", "sereno", "calm", "relaxed"]
+            }
+            
+            for emotion, keywords in emotion_keywords.items():
+                for keyword in keywords:
+                    if keyword in text_lower:
+                        emotion_scores[emotion] += 0.4
+        
+        # PASO 3: Normalizar y aplicar baseline neutral
+        emotion_scores[EmotionCategory.NEUTRAL] = 0.2  # Baseline siempre presente
+        
+        # Normalizar scores a [0, 1]
+        total_score = sum(emotion_scores.values())
+        if total_score > 0:
+            emotion_scores = {e: s / total_score for e, s in emotion_scores.items()}
+        
+        # PASO 4: Seleccionar primaria y secundaria
+        sorted_emotions = sorted(emotion_scores.items(), key=lambda x: x[1], reverse=True)
+        
+        primary = sorted_emotions[0][0]
+        primary_score = sorted_emotions[0][1]
+        
+        # Secundaria solo si score > 0.2 y diferencia con primaria < 0.3
+        secondary = None
+        if len(sorted_emotions) > 1:
+            secondary_candidate = sorted_emotions[1]
+            if secondary_candidate[1] > 0.2 and (primary_score - secondary_candidate[1]) < 0.3:
+                secondary = secondary_candidate[0]
+        
+        # PASO 5: Calcular intensity y confidence
+        intensity = min(primary_score * 1.5, 1.0)  # Amplificar ligeramente
+        
+        # Confidence basado en separación entre emociones
+        if len(sorted_emotions) > 1:
+            separation = sorted_emotions[0][1] - sorted_emotions[1][1]
+            confidence = min(0.5 + separation, 1.0)
+        else:
+            confidence = 0.7
         
         return EmotionProfile(
             primary=primary,
+            secondary=secondary,
             intensity=intensity,
             confidence=confidence,
-            raw_scores=raw_scores
+            raw_scores=emotion_scores
         )
     
     def modulate(
@@ -354,3 +409,126 @@ def create_emotion_modulator(
     modulator.modulation_strength = modulation_strength
     modulator.min_confidence_threshold = min_confidence
     return modulator
+
+
+def blend_emotion_vectors(
+    vectors: Dict[EmotionCategory, np.ndarray],
+    weights: Dict[EmotionCategory, float]
+) -> np.ndarray:
+    """
+    Combina múltiples vectores emocionales con pesos
+    
+    Args:
+        vectors: Dict de vectores emocionales (768-D cada uno)
+        weights: Dict de pesos por emoción (deben sumar ~1.0)
+    
+    Returns:
+        Vector combinado normalizado (768-D)
+    
+    Example:
+        >>> vectors = {EmotionCategory.HAPPY: vec1, EmotionCategory.EXCITED: vec2}
+        >>> weights = {EmotionCategory.HAPPY: 0.7, EmotionCategory.EXCITED: 0.3}
+        >>> blended = blend_emotion_vectors(vectors, weights)
+    
+    Note:
+        Útil para emociones mixtas (e.g., 70% feliz + 30% sorprendido)
+    """
+    # Validar que todas las emociones tengan vectores
+    for emotion in weights.keys():
+        if emotion not in vectors:
+            raise ValueError(f"Emoción {emotion} no tiene vector disponible")
+    
+    # Combinar con pesos
+    blended = np.zeros(768, dtype=np.float32)
+    for emotion, weight in weights.items():
+        blended += weight * vectors[emotion]
+    
+    # Normalizar a unit sphere
+    norm = np.linalg.norm(blended)
+    if norm > 0:
+        blended = blended / norm
+    
+    return blended
+
+
+def analyze_emotion_trajectory(
+    profiles: List[EmotionProfile],
+    window_size: int = 5
+) -> Dict:
+    """
+    Analiza la trayectoria emocional en una conversación
+    
+    Args:
+        profiles: Lista de perfiles emocionales (orden cronológico)
+        window_size: Tamaño de ventana para suavizado
+    
+    Returns:
+        Dict con métricas de trayectoria:
+        - dominant_emotion: Emoción más frecuente
+        - avg_intensity: Intensidad promedio
+        - volatility: Volatilidad emocional (std de cambios)
+        - trend: "escalating", "de-escalating", "stable"
+    
+    Example:
+        >>> profiles = [profile1, profile2, profile3, ...]
+        >>> trajectory = analyze_emotion_trajectory(profiles)
+        >>> print(f"Usuario está {trajectory['trend']}")
+    
+    Note:
+        Útil para adaptar estrategia de respuesta en diálogos largos
+    """
+    if not profiles:
+        return {
+            "dominant_emotion": EmotionCategory.NEUTRAL,
+            "avg_intensity": 0.0,
+            "volatility": 0.0,
+            "trend": "stable"
+        }
+    
+    # Contar emociones dominantes
+    emotion_counts = {}
+    intensities = []
+    
+    for profile in profiles:
+        emotion = profile.primary
+        emotion_counts[emotion] = emotion_counts.get(emotion, 0) + 1
+        intensities.append(profile.intensity)
+    
+    # Emoción dominante
+    dominant_emotion = max(emotion_counts, key=emotion_counts.get)
+    
+    # Intensidad promedio
+    avg_intensity = np.mean(intensities)
+    
+    # Volatilidad (cambios entre emociones consecutivas)
+    changes = []
+    for i in range(1, len(profiles)):
+        if profiles[i].primary != profiles[i-1].primary:
+            changes.append(1)
+        else:
+            changes.append(0)
+    
+    volatility = np.mean(changes) if changes else 0.0
+    
+    # Tendencia (últimos N vs primeros N)
+    if len(intensities) >= window_size * 2:
+        first_half = np.mean(intensities[:window_size])
+        second_half = np.mean(intensities[-window_size:])
+        
+        if second_half > first_half + 0.1:
+            trend = "escalating"
+        elif second_half < first_half - 0.1:
+            trend = "de-escalating"
+        else:
+            trend = "stable"
+    else:
+        trend = "stable"
+    
+    return {
+        "dominant_emotion": dominant_emotion,
+        "avg_intensity": float(avg_intensity),
+        "volatility": float(volatility),
+        "trend": trend,
+        "total_samples": len(profiles),
+        "emotion_distribution": {e.value: c for e, c in emotion_counts.items()}
+    }
