@@ -1,5 +1,11 @@
 # SARAi v2.11 - Sistema de AGI Local (Omni-Sentinel)
 
+[![Release Workflow](https://github.com/iagenerativa/SARAi_v2/actions/workflows/release.yml/badge.svg?branch=master)](https://github.com/iagenerativa/SARAi_v2/actions/workflows/release.yml)
+[![Docker Image](https://img.shields.io/badge/docker-ghcr.io%2Fiagenerativa%2Fsarai__v2-blue)](https://ghcr.io/iagenerativa/sarai_v2)
+[![Multi-Arch](https://img.shields.io/badge/platforms-amd64%20%7C%20arm64-success)](https://ghcr.io/iagenerativa/sarai_v2)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
+
 🧠 **Inteligencia Artificial General (AGI) local con arquitectura híbrida hard-skills + soft-skills**
 
 SARAi combina razonamiento técnico profundo con inteligencia emocional y **voz natural multilingüe**, usando Tiny Recursive Models (TRM) para clasificación de intenciones y un Meta Control Plane (MCP) adaptativo que aprende continuamente sin supervisión humana.
