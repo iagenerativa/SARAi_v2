@@ -59,6 +59,10 @@ RUN if [ "$TARGETARCH" = "amd64" ]; then \
 RUN cd build/bin && \
     upx --best --lzma llama-cli || true
 
+# DEBUG: List all .so files to find their location
+RUN echo "=== Listing all .so files ===" && \
+    find /build/llama.cpp/build -name "*.so" -type f
+
 # Generate SHA256 checksum
 RUN cd build/bin && \
     sha256sum llama-cli > llama-binaries.sha256
