@@ -26,7 +26,7 @@ if 'onnxruntime' not in sys.modules:
 from agents.omni_pipeline import (
     OmniSentinelEngine,
     AudioAuditLogger,
-    # process_audio_stream,  # TODO: Implementar función helper
+    process_audio_stream,
     SENTINEL_AUDIO_RESPONSES,
     TARGET_LATENCY_MS,
     SAMPLE_RATE
@@ -307,7 +307,11 @@ class TestProcessAudioStream:
         mock_engine.tts_empathic.return_value = (sample_audio_22k, 50.0)
         mock_engine_class.return_value = mock_engine
         
-        result = process_audio_stream(sample_audio_22k.tobytes(), context="test")
+        result = process_audio_stream(
+            sample_audio_22k.tobytes(), 
+            context="test",
+            engine_instance=mock_engine
+        )
         
         assert "text" in result
         assert "audio" in result

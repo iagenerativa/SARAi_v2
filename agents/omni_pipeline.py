@@ -468,6 +468,105 @@ def voice_gateway():
 
 
 # ============================================================================
+# HELPER FUNCTIONS
+# ============================================================================
+
+def process_audio_stream(
+    audio_bytes: bytes, 
+    context: str = "default",
+    engine_instance: Optional['OmniSentinelEngine'] = None
+) -> dict:
+    """
+    Procesa un stream de audio completo: STT → LLM → TTS
+    
+    Args:
+        audio_bytes: Audio raw en bytes (formato numpy float32)
+        context: Contexto de la conversación
+        engine_instance: Engine específico (None usa la instancia global)
+    
+    Returns:
+        dict con:
+            - text: Transcripción STT
+            - audio: Audio de respuesta (bytes)
+            - latency_ms: Latencia total
+            - emotion: Emoción detectada
+            - sentinel_triggered: True si safe mode activo
+    """
+    global engine
+    
+    # Usar engine pasado o el global
+    active_engine = engine_instance or engine
+    
+    # 1. Safe Mode Check
+    if is_safe_mode():
+        sentinel = SENTINEL_AUDIO_RESPONSES["safe_mode"]
+        return {
+            "text": sentinel["text"],
+            "audio": b"",  # Sin audio en safe mode
+            "latency_ms": 0.0,
+            "emotion": "neutral",
+            "sentinel_triggered": True,
+            "sentinel_reason": "safe_mode"
+        }
+    
+    try:
+        # 2. Convertir bytes a numpy array
+        audio_np = np.frombuffer(audio_bytes, dtype=np.float32)
+        
+        # 3. STT + Emotion Detection
+        start_time = time.time()
+        stt_result = active_engine.stt_with_emotion(audio_np)
+        
+        # 4. TODO: Aquí iría la llamada al LLM (LFM2/Omni-3B)
+        # Por ahora, respuesta simple eco para testing
+        llm_response = f"Entiendo que dijiste: '{stt_result['text']}'"
+        
+        # 5. TTS Empático
+        audio_out, tts_latency = active_engine.tts_empathic(
+            llm_response, 
+            stt_result["emotion"]
+        )
+        
+        total_latency = (time.time() - start_time) * 1000  # ms
+        
+        # 6. Auditoría (solo si audio_logger está inicializado)
+        if audio_logger is not None:
+            audio_hash = hashlib.sha256(audio_bytes).hexdigest()
+            audio_logger.log_interaction(
+                audio_hash,
+                stt_result,
+                llm_response,
+                tts_latency,
+                context
+            )
+        
+        # 7. Retornar resultado
+        return {
+            "text": stt_result["text"],
+            "audio": audio_out.tobytes(),
+            "latency_ms": total_latency,
+            "emotion": stt_result["emotion"],
+            "llm_response": llm_response,
+            "sentinel_triggered": False
+        }
+    
+    except Exception as e:
+        logger.error(f"❌ Error en process_audio_stream: {e}")
+        
+        # Fallback sentinel
+        sentinel = SENTINEL_AUDIO_RESPONSES["audio_processing_error"]
+        return {
+            "text": sentinel["text"],
+            "audio": b"",
+            "latency_ms": 0.0,
+            "emotion": "neutral",
+            "sentinel_triggered": True,
+            "sentinel_reason": "audio_processing_error",
+            "error": str(e)
+        }
+
+
+# ============================================================================
 # MAIN
 # ============================================================================
 
