@@ -53,12 +53,13 @@ RUN if [ "$TARGETARCH" = "amd64" ]; then \
     cmake --build build --config Release -j$(nproc)
 
 # Compress binaries with UPX (50% size reduction)
+# Solo comprimimos llama-cli (el único binario crítico para v2.16)
 RUN cd build/bin && \
-    upx --best --lzma llama-cli llama-finetune llama-lora-merge || true
+    upx --best --lzma llama-cli || true
 
-# Generate SHA256 checksums
+# Generate SHA256 checksum
 RUN cd build/bin && \
-    sha256sum llama-cli llama-finetune llama-lora-merge > llama-binaries.sha256
+    sha256sum llama-cli > llama-binaries.sha256
 
 # ============================================================================
 # Stage 2: Runtime (minimal image)
@@ -72,12 +73,10 @@ RUN apt-get update && apt-get install -y \
 
 # Copy binaries from builder
 COPY --from=builder /build/llama.cpp/build/bin/llama-cli /usr/local/bin/
-COPY --from=builder /build/llama.cpp/build/bin/llama-finetune /usr/local/bin/
-COPY --from=builder /build/llama.cpp/build/bin/llama-lora-merge /usr/local/bin/
 COPY --from=builder /build/llama.cpp/build/bin/llama-binaries.sha256 /usr/local/bin/
 
 # Make binaries executable
-RUN chmod +x /usr/local/bin/llama-*
+RUN chmod +x /usr/local/bin/llama-cli
 
 # Metadata
 LABEL org.opencontainers.image.title="llama.cpp binaries for SARAi v2.16"

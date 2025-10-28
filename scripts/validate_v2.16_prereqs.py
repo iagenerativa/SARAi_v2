@@ -163,8 +163,8 @@ class PrerequisiteChecker:
         return True, "SelfRepair + RedTeam implemented"
     
     def check_llama_cpp(self) -> Tuple[bool, str]:
-        """Check: llama.cpp binarios instalados"""
-        required_bins = ["llama-cli", "llama-finetune", "llama-lora-merge"]
+        """Check: llama.cpp binarios instalados (solo llama-cli es crítico para v2.16)"""
+        required_bins = ["llama-cli"]
         missing = []
         
         for binary in required_bins:
