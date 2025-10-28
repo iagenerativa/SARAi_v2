@@ -1,0 +1,50 @@
+{"input": "¿Qué es la fotosíntesis?", "expected_keywords": ["clorofila", "luz", "CO2", "glucosa", "oxígeno"], "category": "science", "difficulty": "basic"}
+{"input": "Explica la teoría de la relatividad", "expected_keywords": ["Einstein", "espacio-tiempo", "velocidad", "luz", "gravedad"], "category": "science", "difficulty": "advanced"}
+{"input": "¿Cómo funciona un motor de combustión interna?", "expected_keywords": ["pistón", "combustible", "explosión", "cilindro", "energía"], "category": "engineering", "difficulty": "intermediate"}
+{"input": "Resume la Primera Guerra Mundial", "expected_keywords": ["1914", "Triple Entente", "Alemania", "armisticio", "tratado"], "category": "history", "difficulty": "intermediate"}
+{"input": "¿Qué es el aprendizaje automático?", "expected_keywords": ["algoritmo", "datos", "entrenamiento", "predicción", "modelo"], "category": "technology", "difficulty": "intermediate"}
+{"input": "Explica el ciclo del agua", "expected_keywords": ["evaporación", "condensación", "precipitación", "escorrentía"], "category": "science", "difficulty": "basic"}
+{"input": "¿Quién fue Leonardo da Vinci?", "expected_keywords": ["artista", "inventor", "Mona Lisa", "Renacimiento", "italiano"], "category": "history", "difficulty": "basic"}
+{"input": "¿Cómo se calcula el área de un círculo?", "expected_keywords": ["número pi", "radio", "fórmula", "área"], "category": "math", "difficulty": "basic"}
+{"input": "Describe el proceso de mitosis celular", "expected_keywords": ["célula", "división", "cromosomas", "profase", "metafase"], "category": "biology", "difficulty": "advanced"}
+{"input": "¿Qué es la inflación económica?", "expected_keywords": ["precios", "moneda", "poder adquisitivo", "banco central"], "category": "economics", "difficulty": "intermediate"}
+{"input": "Explica la estructura del ADN", "expected_keywords": ["Watson", "Crick", "doble hélice", "nucleótidos", "bases"], "category": "biology", "difficulty": "advanced"}
+{"input": "¿Cómo funciona Internet?", "expected_keywords": ["TCP/IP", "protocolo", "router", "paquetes", "servidor"], "category": "technology", "difficulty": "intermediate"}
+{"input": "¿Qué es la Revolución Industrial?", "expected_keywords": ["máquina vapor", "fábrica", "siglo XVIII", "producción", "Inglaterra"], "category": "history", "difficulty": "intermediate"}
+{"input": "Resume el Quijote de Cervantes", "expected_keywords": ["Don Quijote", "Sancho Panza", "caballero", "molinos", "aventura"], "category": "literature", "difficulty": "intermediate"}
+{"input": "¿Qué son los números primos?", "expected_keywords": ["divisible", "1", "sí mismo", "indivisible"], "category": "math", "difficulty": "basic"}
+{"input": "Explica la tabla periódica", "expected_keywords": ["elementos", "Mendeleev", "químicos", "atómico", "grupos"], "category": "chemistry", "difficulty": "intermediate"}
+{"input": "¿Cómo se forma un tornado?", "expected_keywords": ["viento", "rotación", "nube", "embudo", "supercélula"], "category": "meteorology", "difficulty": "advanced"}
+{"input": "¿Qué es la capa de ozono?", "expected_keywords": ["estratosfera", "O3", "UV", "radiación", "protección"], "category": "environment", "difficulty": "intermediate"}
+{"input": "Describe el sistema solar", "expected_keywords": ["Sol", "planetas", "órbita", "Tierra", "Júpiter"], "category": "astronomy", "difficulty": "basic"}
+{"input": "¿Qué es el teorema de Pitágoras?", "expected_keywords": ["triángulo", "rectángulo", "hipotenusa", "catetos", "a²+b²=c²"], "category": "math", "difficulty": "intermediate"}
+{"input": "Explica la evolución de Darwin", "expected_keywords": ["selección natural", "especies", "adaptación", "supervivencia", "mutación"], "category": "biology", "difficulty": "advanced"}
+{"input": "¿Cómo funciona un transistor?", "expected_keywords": ["semiconductor", "electrónico", "amplificador", "corriente", "silicio"], "category": "electronics", "difficulty": "advanced"}
+{"input": "¿Qué es la Guerra Fría?", "expected_keywords": ["URSS", "Estados Unidos", "capitalismo", "comunismo", "1947"], "category": "history", "difficulty": "intermediate"}
+{"input": "Describe el ciclo de vida de una estrella", "expected_keywords": ["nebulosa", "fusión", "gigante roja", "supernova", "enana blanca"], "category": "astronomy", "difficulty": "advanced"}
+{"input": "¿Qué es el cambio climático?", "expected_keywords": ["CO2", "temperatura", "gases", "efecto invernadero", "calentamiento"], "category": "environment", "difficulty": "intermediate"}
+{"input": "Explica el sistema nervioso humano", "expected_keywords": ["neuronas", "cerebro", "médula espinal", "impulsos", "sinapsis"], "category": "biology", "difficulty": "advanced"}
+{"input": "¿Cómo funciona la blockchain?", "expected_keywords": ["bloques", "criptografía", "descentralizado", "hash", "cadena"], "category": "technology", "difficulty": "advanced"}
+{"input": "¿Qué es la Declaración de Independencia de EEUU?", "expected_keywords": ["1776", "colonias", "británico", "libertad", "Jefferson"], "category": "history", "difficulty": "intermediate"}
+{"input": "Describe el proceso de fotosíntesis en detalle", "expected_keywords": ["cloroplasto", "luz", "H2O", "CO2", "glucosa", "ATP"], "category": "biology", "difficulty": "advanced"}
+{"input": "¿Qué es la Ilustración?", "expected_keywords": ["razón", "siglo XVIII", "Voltaire", "Rousseau", "conocimiento"], "category": "philosophy", "difficulty": "advanced"}
+{"input": "Explica cómo funciona un cohete espacial", "expected_keywords": ["propulsión", "combustible", "Newton", "empuje", "oxidante"], "category": "aerospace", "difficulty": "advanced"}
+{"input": "Resume la Revolución Francesa", "expected_keywords": ["1789", "Luis XVI", "Bastilla", "República", "guillotina"], "category": "history", "difficulty": "intermediate"}
+{"input": "¿Cómo funciona la energía nuclear?", "expected_keywords": ["fisión", "uranio", "reactor", "calor", "electricidad"], "category": "physics", "difficulty": "advanced"}
+{"input": "¿Qué es un agujero negro?", "expected_keywords": ["gravedad", "estrella", "colapso", "horizonte de eventos", "masa"], "category": "astronomy", "difficulty": "advanced"}
+{"input": "Explica la respiración celular", "expected_keywords": ["mitocondria", "ATP", "glucosa", "oxígeno", "energía"], "category": "biology", "difficulty": "advanced"}
+{"input": "¿Qué es la Magna Carta?", "expected_keywords": ["1215", "Inglaterra", "Juan sin Tierra", "derechos", "nobleza"], "category": "history", "difficulty": "intermediate"}
+{"input": "Describe el funcionamiento de un CPU", "expected_keywords": ["procesador", "instrucciones", "transistores", "reloj", "núcleo"], "category": "computer_science", "difficulty": "advanced"}
+{"input": "¿Qué es la ley de la gravedad de Newton?", "expected_keywords": ["masa", "fuerza", "atracción", "inverso cuadrado", "distancia"], "category": "physics", "difficulty": "intermediate"}
+{"input": "Explica el método científico", "expected_keywords": ["observación", "hipótesis", "experimento", "análisis", "conclusión"], "category": "science", "difficulty": "basic"}
+{"input": "¿Cómo funciona un motor eléctrico?", "expected_keywords": ["electromagnetismo", "rotor", "estator", "corriente", "campo magnético"], "category": "engineering", "difficulty": "intermediate"}
+{"input": "¿Qué es la Segunda Guerra Mundial?", "expected_keywords": ["1939", "Hitler", "Aliados", "Eje", "holocausto"], "category": "history", "difficulty": "intermediate"}
+{"input": "Describe la estructura de un átomo", "expected_keywords": ["núcleo", "protones", "neutrones", "electrones", "órbita"], "category": "chemistry", "difficulty": "intermediate"}
+{"input": "¿Qué es el Big Bang?", "expected_keywords": ["universo", "expansión", "origen", "singularidad", "tiempo"], "category": "cosmology", "difficulty": "advanced"}
+{"input": "Explica la fotosíntesis y respiración celular", "expected_keywords": ["complementario", "energía", "ciclo", "carbono", "oxígeno"], "category": "biology", "difficulty": "advanced"}
+{"input": "¿Cómo funciona la memoria RAM?", "expected_keywords": ["volátil", "datos", "temporal", "velocidad", "acceso aleatorio"], "category": "computer_science", "difficulty": "intermediate"}
+{"input": "¿Qué es el Renacimiento?", "expected_keywords": ["siglo XIV", "Italia", "arte", "humanismo", "cultura"], "category": "history", "difficulty": "intermediate"}
+{"input": "Describe el proceso de fermentación", "expected_keywords": ["levadura", "alcohol", "anaeróbico", "glucosa", "CO2"], "category": "biology", "difficulty": "intermediate"}
+{"input": "¿Qué es la Constitución?", "expected_keywords": ["ley fundamental", "derechos", "gobierno", "poderes", "estado"], "category": "politics", "difficulty": "intermediate"}
+{"input": "Explica cómo funciona un GPS", "expected_keywords": ["satélite", "triangulación", "señal", "ubicación", "coordenadas"], "category": "technology", "difficulty": "intermediate"}
+{"input": "¿Qué es la mecánica cuántica?", "expected_keywords": ["partículas", "Planck", "incertidumbre", "probabilidad", "cuanto"], "category": "physics", "difficulty": "advanced"}

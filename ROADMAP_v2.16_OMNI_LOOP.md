@@ -649,10 +649,102 @@ class LoRANightlyTrainer:
         return lora_output
     
     def _validate_lora(self, lora_path: Path) -> bool:
-        """Valida LoRA con test set antes de merge"""
-        # TODO: Implementar validación con test set
-        # Por ahora, siempre retorna True (validación manual)
-        return True
+        """
+        Valida LoRA con test set antes de merge
+        
+        IMPLEMENTACIÓN REAL v2.16:
+        - Carga golden queries desde data/lora_validation_set.jsonl
+        - Genera respuestas con LoRA vs modelo base
+        - Compara keyword coverage
+        - Threshold: >70% de queries deben mejorar
+        """
+        import json
+        from pathlib import Path
+        
+        validation_set_path = Path("data/lora_validation_set.jsonl")
+        
+        if not validation_set_path.exists():
+            logger.warning("Validation set not found. Skipping validation.")
+            return True  # Fallback: aceptar LoRA sin validación
+        
+        # Cargar validation set
+        validation_queries = []
+        with open(validation_set_path) as f:
+            for line in f:
+                validation_queries.append(json.loads(line))
+        
+        # Sample 10 queries aleatorias (validación rápida)
+        import random
+        sample_queries = random.sample(validation_queries, min(10, len(validation_queries)))
+        
+        improved_count = 0
+        total_count = len(sample_queries)
+        
+        for query in sample_queries:
+            input_text = query["input"]
+            expected_keywords = query["expected_keywords"]
+            
+            # Generar con LoRA
+            response_lora = self._generate_with_lora(lora_path, input_text)
+            
+            # Generar con modelo base (sin LoRA)
+            response_base = self._generate_with_base(input_text)
+            
+            # Comparar keyword coverage
+            coverage_lora = self._calculate_keyword_coverage(response_lora, expected_keywords)
+            coverage_base = self._calculate_keyword_coverage(response_base, expected_keywords)
+            
+            # LoRA mejora si coverage aumenta
+            if coverage_lora > coverage_base:
+                improved_count += 1
+        
+        improvement_rate = improved_count / total_count
+        
+        # Threshold: >70% de queries deben mejorar
+        if improvement_rate >= 0.7:
+            logger.info(f"✅ LoRA validation passed: {improvement_rate:.1%} improvement")
+            return True
+        else:
+            logger.warning(f"❌ LoRA validation failed: {improvement_rate:.1%} improvement (<70%)")
+            return False
+    
+    def _generate_with_lora(self, lora_path: Path, prompt: str) -> str:
+        """Genera respuesta con LoRA adapter"""
+        cmd = [
+            "llama-cli",
+            "--model", "models/gguf/qwen2.5-omni-3b.gguf",
+            "--lora", str(lora_path),
+            "--prompt", prompt,
+            "--n-predict", "128",
+            "--temp", "0.3"  # Baja temperatura para validación
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        return result.stdout.strip()
+    
+    def _generate_with_base(self, prompt: str) -> str:
+        """Genera respuesta con modelo base (sin LoRA)"""
+        cmd = [
+            "llama-cli",
+            "--model", "models/gguf/qwen2.5-omni-3b.gguf",
+            "--prompt", prompt,
+            "--n-predict", "128",
+            "--temp", "0.3"
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        return result.stdout.strip()
+    
+    def _calculate_keyword_coverage(self, response: str, keywords: List[str]) -> float:
+        """
+        Calcula coverage de keywords en la respuesta
+        
+        Returns:
+            Fracción de keywords presentes (0.0 - 1.0)
+        """
+        response_lower = response.lower()
+        found_count = sum(1 for kw in keywords if kw.lower() in response_lower)
+        return found_count / len(keywords) if keywords else 0.0
     
     def _merge_lora(self, lora_path: Path) -> Path:
         """Merge LoRA con modelo base usando llama-lora-merge"""
