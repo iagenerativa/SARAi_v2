@@ -1,0 +1,88 @@
+name: Build llama.cpp Binaries (Zero-Compile)
+
+on:
+  workflow_dispatch:  # Manual trigger
+  push:
+    tags:
+      - 'v2.16-*'  # Trigger en tags v2.16
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/llama-cpp-bin
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=2.16-rc
+            type=raw,value=latest
+            type=semver,pattern={{version}}
+      
+      - name: Build and push multi-arch
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.llama-cpp-bin
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            LLAMA_CPP_VERSION=b4226
+      
+      - name: Verify binaries
+        run: |
+          echo "🔍 Verificando binarios en la imagen..."
+          docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:2.16-rc llama-cli --version
+          docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:2.16-rc sha256sum -c /usr/local/bin/llama-binaries.sha256
+      
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:2.16-rc
+          format: cyclonedx-json
+          output-file: llama-binaries-sbom.json
+      
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: llama-binaries-sbom
+          path: llama-binaries-sbom.json
+          if-no-files-found: warn
+      
+      - name: Summary
+        run: |
+          echo "✅ llama.cpp binaries publicados:"
+          echo "   Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:2.16-rc"
+          echo "   Platforms: linux/amd64, linux/arm64"
+          echo "   Binaries: llama-cli, llama-finetune, llama-lora-merge"
+          echo ""
+          echo "Para usar:"
+          echo "   make pull-llama-binaries"
+          echo "   # o manualmente:"
+          echo "   docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:2.16-rc"

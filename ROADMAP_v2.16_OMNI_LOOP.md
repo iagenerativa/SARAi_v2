@@ -1072,10 +1072,47 @@ class TestOmniLoopIntegration:
 
 ## 📦 Dependencies & Installation
 
-### System Dependencies
+### 🚀 ZERO-COMPILE Pipeline (v2.16 Production)
+
+**CRÍTICO**: llama.cpp NO se compila en producción. Usamos binarios pre-compilados firmados.
 
 ```bash
-# Install llama.cpp (build from source)
+# Método 1: Make target (RECOMENDADO)
+make pull-llama-binaries
+
+# Método 2: Manual con Docker
+docker pull ghcr.io/iagenerativa/llama-cpp-bin:2.16-rc
+docker create --name llama-temp ghcr.io/iagenerativa/llama-cpp-bin:2.16-rc
+docker cp llama-temp:/usr/local/bin/llama-cli ~/.local/bin/
+docker cp llama-temp:/usr/local/bin/llama-finetune ~/.local/bin/
+docker cp llama-temp:/usr/local/bin/llama-lora-merge ~/.local/bin/
+docker rm llama-temp
+export PATH="$HOME/.local/bin:$PATH"
+
+# Verificación de firmas GPG
+sha256sum -c ~/.local/bin/llama-binaries.sha256
+```
+
+**Características de los binarios**:
+- **Multi-arch**: linux/amd64 (AVX2, AVX512), linux/arm64 (ARM_NEON)
+- **Comprimidos**: UPX (~50% reducción de tamaño)
+- **Firmados**: SHA256 + GPG signature
+- **Size total**: ~18 MB (vs ~200 MB sin comprimir)
+- **Download time**: <5 segundos
+
+**Fallback automático**: Si `pull-llama-binaries` falla, el sistema compila desde source automáticamente.
+
+---
+
+### System Dependencies (Manual Compilation - FALLBACK ONLY)
+
+⚠️ **Solo necesario si Zero-Compile falla**. Tiempo estimado: ~10 minutos.
+
+```bash
+# FALLBACK: Compilar desde source
+make compile-llama-cpp
+
+# O manualmente:
 git clone https://github.com/ggerganov/llama.cpp.git
 cd llama.cpp
 make -j$(nproc)

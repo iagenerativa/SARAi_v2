@@ -310,6 +310,120 @@ validate-hardening:  ## 🛡️ NEW v2.11: Valida seguridad kernel-level del con
 	@echo "✅ HARDENING VALIDADO - Contenedor Omni seguro"
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
+# ============================================================================
+# v2.16 Omni-Loop Zero-Compile Pipeline
+# ============================================================================
+
+pull-llama-binaries: ## 🚀 [v2.16] Descarga binarios llama.cpp pre-compilados (Zero-Compile)
+	@echo "🚀 [v2.16 Zero-Compile] Descargando binarios llama.cpp..."
+	@echo ""
+	@echo "BINARIOS REQUERIDOS:"
+	@echo "  • llama-cli         (inferencia interactiva)"
+	@echo "  • llama-finetune    (LoRA training)"
+	@echo "  • llama-lora-merge  (fusión de adaptadores)"
+	@echo ""
+	@# Detectar arquitectura
+	@ARCH=$$(uname -m); \
+	if [ "$$ARCH" = "x86_64" ]; then \
+		VARIANT="avx2"; \
+	elif [ "$$ARCH" = "aarch64" ]; then \
+		VARIANT="arm_neon"; \
+	else \
+		echo "❌ Arquitectura no soportada: $$ARCH"; \
+		exit 1; \
+	fi; \
+	echo "Arquitectura detectada: $$ARCH (variante: $$VARIANT)"; \
+	echo ""; \
+	mkdir -p ~/.local/bin; \
+	cd ~/.local/bin; \
+	echo "Descargando desde ghcr.io/iagenerativa/llama-cpp-bin:2.16-rc..."; \
+	docker pull ghcr.io/iagenerativa/llama-cpp-bin:2.16-rc 2>/dev/null || \
+		(echo "⚠️ Imagen no disponible en registry, usando fallback..."; \
+		 echo "Compilando desde source (esto tardará ~10 min)..."; \
+		 $(MAKE) compile-llama-cpp); \
+	if docker inspect ghcr.io/iagenerativa/llama-cpp-bin:2.16-rc >/dev/null 2>&1; then \
+		echo "Extrayendo binarios del contenedor..."; \
+		docker create --name llama-temp ghcr.io/iagenerativa/llama-cpp-bin:2.16-rc; \
+		docker cp llama-temp:/usr/local/bin/llama-cli llama-cli-$$VARIANT; \
+		docker cp llama-temp:/usr/local/bin/llama-finetune llama-finetune-$$VARIANT; \
+		docker cp llama-temp:/usr/local/bin/llama-lora-merge llama-lora-merge-$$VARIANT; \
+		docker rm llama-temp; \
+		ln -sf llama-cli-$$VARIANT llama-cli; \
+		ln -sf llama-finetune-$$VARIANT llama-finetune; \
+		ln -sf llama-lora-merge-$$VARIANT llama-lora-merge; \
+		chmod +x llama-*; \
+		echo ""; \
+		echo "✅ Binarios instalados en ~/.local/bin/"; \
+		echo ""; \
+		echo "Verificando firmas GPG..."; \
+		if [ -f "llama-binaries.sig" ]; then \
+			gpg --verify llama-binaries.sig llama-cli 2>&1 | grep -q "Good signature" && \
+				echo "✅ Firma GPG válida" || echo "⚠️ Firma GPG no pudo verificarse"; \
+		fi; \
+		echo ""; \
+		echo "TAMAÑO TOTAL: $$(du -sh llama-* | awk '{sum+=$$1} END {print sum}') MB (comprimidos UPX)"; \
+		echo ""; \
+		echo "Para usar los binarios, añade a tu PATH:"; \
+		echo '  export PATH="$$HOME/.local/bin:$$PATH"'; \
+	fi
+
+compile-llama-cpp: ## 🛠️ [FALLBACK] Compila llama.cpp desde source si pull falla
+	@echo "🛠️ Compilando llama.cpp desde source (fallback)..."
+	@if [ ! -d "/tmp/llama.cpp" ]; then \
+		git clone https://github.com/ggerganov/llama.cpp /tmp/llama.cpp; \
+	fi
+	@cd /tmp/llama.cpp && \
+		git pull && \
+		make clean && \
+		make -j$$(nproc) llama-cli llama-finetune llama-lora-merge && \
+		mkdir -p ~/.local/bin && \
+		cp build/bin/llama-cli ~/.local/bin/ && \
+		cp build/bin/llama-finetune ~/.local/bin/ && \
+		cp build/bin/llama-lora-merge ~/.local/bin/ && \
+		echo "✅ Compilación completada. Binarios en ~/.local/bin/"
+
+validate-v2.16-prereqs: ## 🔍 [v2.16] Valida pre-requisitos para Omni-Loop
+	@echo "🔍 Validando pre-requisitos v2.16 Omni-Loop..."
+	@if [ ! -f "scripts/validate_v2.16_prereqs.py" ]; then \
+		echo "❌ Error: validate_v2.16_prereqs.py no encontrado"; \
+		exit 1; \
+	fi
+	@$(PYTHON) scripts/validate_v2.16_prereqs.py
+	@echo ""
+	@echo "Si todos los checks pasan, v2.16 está listo para implementación."
+
+setup-v2.16: pull-llama-binaries validate-v2.16-prereqs ## 🎯 [v2.16] Setup completo Zero-Compile
+	@echo "✅ v2.16 Omni-Loop setup completado"
+	@echo ""
+	@echo "NEXT STEPS:"
+	@echo "  1. Implementar v2.12-v2.15 (pre-requisitos)"
+	@echo "  2. Iniciar implementación v2.16 (Nov 26)"
+	@echo "  3. make tag-v2.16-rc0 (cuando esté listo)"
+
+tag-v2.16-rc0: ## 📦 [v2.16] Crea tag firmado GPG v2.16-rc0
+	@echo "📦 Creando tag v2.16-rc0..."
+	@echo ""
+	@echo "CHECKLIST PRE-TAG:"
+	@echo "  [ ] Binarios llama-* OK"
+	@echo "  [ ] validate_v2.16_prereqs.py pasa"
+	@echo "  [ ] Confidence semántico ≥0.8"
+	@echo "  [ ] Timeout dinámico ≤60s"
+	@echo "  [ ] Cache híbrido LRU-TTL"
+	@echo ""
+	@read -p "¿Todos los checks pasaron? [y/N] " -n 1 -r; \
+	echo; \
+	if [[ $$REPLY =~ ^[Yy]$$ ]]; then \
+		git tag -s v2.16-rc0 -m "v2.16-rc0: Zero-compile, semantic confidence, dynamic timeout"; \
+		echo "✅ Tag v2.16-rc0 creado"; \
+		echo ""; \
+		echo "Para pushear:"; \
+		echo "  git push origin v2.16-rc0"; \
+	else \
+		echo "❌ Tag cancelado. Completa los checks primero."; \
+		exit 1; \
+	fi
+
 # Target por defecto
 .DEFAULT_GOAL := help
+
 

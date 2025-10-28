@@ -172,9 +172,76 @@ class PrerequisiteChecker:
                 missing.append(binary)
         
         if missing:
-            return False, f"Missing binaries: {', '.join(missing)}"
+            # NUEVO v2.16: Intento de pull automático
+            print(f"⚠️  Binarios faltantes: {', '.join(missing)}")
+            print(f"   Intentando descarga automática (Zero-Compile)...")
+            
+            if self._pull_oci_binaries(missing):
+                # Re-check después del pull
+                still_missing = [b for b in required_bins if not shutil.which(b)]
+                if not still_missing:
+                    return True, "Binaries installed via OCI pull (Zero-Compile)"
+                else:
+                    return False, f"Pull failed, still missing: {', '.join(still_missing)}"
+            else:
+                return False, f"Missing binaries: {', '.join(missing)} (run: make pull-llama-binaries)"
         
         return True, "All llama.cpp binaries installed"
+    
+    def _pull_oci_binaries(self, binaries: List[str]) -> bool:
+        """
+        ZERO-COMPILE: Descarga binarios desde OCI registry
+        
+        Returns:
+            True si la descarga fue exitosa
+        """
+        try:
+            import subprocess
+            
+            print("   🐳 Pulling ghcr.io/iagenerativa/llama-cpp-bin:2.16-rc...")
+            
+            # Pull de la imagen
+            result = subprocess.run(
+                ["docker", "pull", "ghcr.io/iagenerativa/llama-cpp-bin:2.16-rc"],
+                capture_output=True,
+                text=True,
+                timeout=60
+            )
+            
+            if result.returncode != 0:
+                print(f"   ❌ Docker pull failed: {result.stderr}")
+                return False
+            
+            # Crear contenedor temporal
+            subprocess.run(
+                ["docker", "create", "--name", "llama-temp", "ghcr.io/iagenerativa/llama-cpp-bin:2.16-rc"],
+                capture_output=True,
+                check=True
+            )
+            
+            # Copiar binarios
+            bin_dir = Path.home() / ".local" / "bin"
+            bin_dir.mkdir(parents=True, exist_ok=True)
+            
+            for binary in binaries:
+                subprocess.run(
+                    ["docker", "cp", f"llama-temp:/usr/local/bin/{binary}", str(bin_dir / binary)],
+                    capture_output=True,
+                    check=True
+                )
+                (bin_dir / binary).chmod(0o755)
+            
+            # Cleanup
+            subprocess.run(["docker", "rm", "llama-temp"], capture_output=True)
+            
+            print(f"   ✅ Binaries extracted to {bin_dir}")
+            print(f"   💡 Add to PATH: export PATH=\"$HOME/.local/bin:$PATH\"")
+            
+            return True
+        
+        except Exception as e:
+            print(f"   ❌ OCI pull failed: {e}")
+            return False
     
     def check_python_deps(self) -> Tuple[bool, str]:
         """Check: Dependencias Python para v2.16"""
