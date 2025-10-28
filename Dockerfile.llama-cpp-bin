@@ -77,10 +77,18 @@ RUN apt-get update && apt-get install -y \
 # NOTE: Shared libraries are in build/src/ and build/ggml/src/, not build/
 COPY --from=builder /build/llama.cpp/build/bin/llama-cli /usr/local/bin/
 COPY --from=builder /build/llama.cpp/build/bin/llama-binaries.sha256 /usr/local/bin/
-COPY --from=builder /build/llama.cpp/build/src/libllama.so /usr/local/lib/
-COPY --from=builder /build/llama.cpp/build/ggml/src/libggml.so /usr/local/lib/
 
-# Update library cache
+# Copy ALL llama.cpp shared libraries (libllama.so depends on libggml-*.so)
+# libllama.so → main library
+COPY --from=builder /build/llama.cpp/build/src/libllama.so /usr/local/lib/
+
+# libggml.so + dependencies (base, cpu, etc.)
+# CRITICAL: llama-cli needs libggml-base.so and libggml-cpu.so at runtime
+COPY --from=builder /build/llama.cpp/build/ggml/src/libggml.so /usr/local/lib/
+COPY --from=builder /build/llama.cpp/build/ggml/src/libggml-base.so /usr/local/lib/
+COPY --from=builder /build/llama.cpp/build/ggml/src/libggml-cpu.so /usr/local/lib/
+
+# Update library cache (CRITICAL: must run after copying all .so files)
 RUN ldconfig
 
 # Make binaries executable
