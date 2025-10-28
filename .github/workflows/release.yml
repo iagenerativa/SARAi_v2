@@ -44,11 +44,6 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## 📋 Deployment Milestones" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
-          # Crear directorio para milestones
-          mkdir -p .milestones
-          echo "deployment_started=$(date +%s)" > .milestones/M0_init.txt
-          
           echo "✅ M0: Deployment initialized at $(date -u +"%H:%M:%S")"
 
       # ============================================================
@@ -59,12 +54,16 @@ jobs:
         
       - name: "📊 Log M1 Complete"
         run: |
+          # CRÍTICO: Crear directorio DESPUÉS del checkout (checkout limpia workspace)
+          mkdir -p .milestones
+          echo "deployment_started=$(date +%s)" > .milestones/M0_init.txt
+          echo "checkout_complete=$(date +%s)" > .milestones/M1_checkout.txt
+          
           echo "✅ **M1: Checkout** - $(date -u +"%H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
           echo "  - Repository: ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
           echo "  - Commit SHA: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
           echo "  - Tag: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "checkout_complete=$(date +%s)" > .milestones/M1_checkout.txt
           echo "✅ M1: Checkout completed"
 
       - name: "🔧 MILESTONE 2: Setup Docker Buildx"
