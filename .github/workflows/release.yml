@@ -189,8 +189,8 @@ jobs:
             ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }}-amd64 \
             ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }}-arm64
           
-          # Get manifest digest
-          DIGEST=$(docker buildx imagetools inspect ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }} --format '{{.Manifest.Digest}}')
+          # Get manifest digest (fix: use --raw to get only the digest)
+          DIGEST=$(docker buildx imagetools inspect ghcr.io/${{ steps.repo.outputs.name }}:${{ github.ref_name }} --raw | sha256sum | awk '{print "sha256:"$1}')
           echo "digest=$DIGEST" >> $GITHUB_OUTPUT
           
           echo "✅ Multi-arch manifest created with digest: $DIGEST"
@@ -216,6 +216,7 @@ jobs:
             .milestones/M5B_arm64.txt
             .milestones/M5C_manifest.txt
           retention-days: 7
+          if-no-files-found: warn  # Fix: No fallar si .milestones/ está vacío
       
       # Final cleanup before SBOM/signing
       - name: "🧹 Final Docker Cleanup (pre-SBOM)"
@@ -297,6 +298,7 @@ jobs:
             sbom.*.json
             sbom.txt
           retention-days: 90
+          if-no-files-found: warn  # Fix: No fallar si archivos no existen
 
       - name: "🔐 MILESTONE 9: Sign Docker Image (Cosign OIDC)"
         run: |
@@ -526,3 +528,4 @@ jobs:
           name: deployment-milestones-${{ github.ref_name }}
           path: .milestones/
           retention-days: 90
+          if-no-files-found: warn  # Fix: No fallar si .milestones/ está vacío
