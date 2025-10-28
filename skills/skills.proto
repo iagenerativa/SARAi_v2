@@ -1,0 +1,142 @@
+// skills/skills.proto - Contrato gRPC para Skills-as-Services v2.12 Phoenix
+// ═══════════════════════════════════════════════════════════════════════════
+// FILOSOFÍA:
+// - Minimalista: solo lo necesario para inferencia (prompt → text)
+// - Extensible: campos opcionales para futura evolución (streaming, logprobs)
+// - Eficiente: string > bytes (protobuf comprime automáticamente)
+// - Compatible: implementa grpc.health.v1.Health para k8s/docker healthcheck
+// ═══════════════════════════════════════════════════════════════════════════
+
+syntax = "proto3";
+
+package sarai.skills;
+
+// ══════════════════════════════════════════════════════════════════════════
+// Servicio principal: SkillService
+// ══════════════════════════════════════════════════════════════════════════
+
+service SkillService {
+  // Inferencia síncrona (request/response)
+  // CRÍTICO: debe completar en <30s (timeout del host)
+  rpc Infer(InferRequest) returns (InferResponse);
+  
+  // Health check (integración con grpc.health.v1.Health)
+  // Usado por Docker HEALTHCHECK y k8s probes
+  rpc Check(HealthCheckRequest) returns (HealthCheckResponse);
+  
+  // Métricas Prometheus (opcional, para observabilidad avanzada)
+  rpc GetMetrics(MetricsRequest) returns (MetricsResponse);
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Infer - Inferencia principal
+// ══════════════════════════════════════════════════════════════════════════
+
+message InferRequest {
+  // Prompt completo (incluye system prompt si es necesario)
+  // Máx recomendado: 2048 chars (n_ctx=512 del skill)
+  string prompt = 1;
+  
+  // Máximo de tokens a generar
+  // Default: 128 (suficiente para SQL, snippets cortos)
+  int32 max_tokens = 2;
+  
+  // Temperatura (0.0 = determinista, 1.0 = creativo)
+  // Default: 0.7
+  float temperature = 3;
+  
+  // Secuencias de parada (opcional)
+  // Ejemplo: ["</s>", "\n\n", "```"]
+  repeated string stop = 4;
+  
+  // Top-p sampling (opcional)
+  // Default: 0.95
+  float top_p = 5;
+  
+  // Contexto adicional (key-value metadata)
+  // Ejemplo: {"schema": "users(id, name)", "dialect": "postgresql"}
+  map<string, string> context = 6;
+}
+
+message InferResponse {
+  // Texto generado por el LLM
+  string text = 1;
+  
+  // Confianza semántica (0.0-1.0)
+  // Calculada con embeddings o heurística simple
+  float confidence = 2;
+  
+  // Latencia en milisegundos (end-to-end)
+  int64 latency_ms = 3;
+  
+  // Tokens generados (útil para billing/metrics)
+  int32 tokens_generated = 4;
+  
+  // Modelo usado (ej: "sql.gguf", "code.gguf")
+  string model = 5;
+  
+  // Finish reason (opcional)
+  // "stop" | "length" | "error"
+  string finish_reason = 6;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Health Check - Compatible con grpc.health.v1.Health
+// ══════════════════════════════════════════════════════════════════════════
+
+message HealthCheckRequest {
+  // Service name (opcional, para multi-skill container)
+  string service = 1;
+}
+
+message HealthCheckResponse {
+  enum ServingStatus {
+    UNKNOWN = 0;
+    SERVING = 1;        // Skill operativo
+    NOT_SERVING = 2;    // Skill degradado (modelo no cargado)
+    SERVICE_UNKNOWN = 3; // Skill no existe
+  }
+  
+  ServingStatus status = 1;
+  
+  // Mensaje descriptivo (opcional)
+  string message = 2;
+  
+  // Hot-reloads realizados (diagnóstico)
+  int32 reload_count = 3;
+  
+  // Uptime en segundos
+  int64 uptime_seconds = 4;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Metrics - Prometheus-compatible
+// ══════════════════════════════════════════════════════════════════════════
+
+message MetricsRequest {
+  // Vacío (podría filtrar por tipo de métrica en futuro)
+}
+
+message MetricsResponse {
+  // Total de requests procesados
+  int64 total_requests = 1;
+  
+  // Requests fallidos
+  int64 failed_requests = 2;
+  
+  // Latencia promedio (ms)
+  float avg_latency_ms = 3;
+  
+  // Latencia P99 (ms)
+  float p99_latency_ms = 4;
+  
+  // Uso de RAM (bytes)
+  // Calculado con psutil en runtime.py
+  int64 ram_bytes = 5;
+  
+  // Tokens generados (acumulado)
+  int64 total_tokens = 6;
+  
+  // Cold-start time (ms, solo primera request)
+  int64 cold_start_ms = 7;
+}

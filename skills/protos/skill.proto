@@ -1,0 +1,108 @@
+// skills/protos/skill.proto - Interfaz gRPC para Skills v2.12 Phoenix
+// Versión: 1.0.0
+// Compatibilidad: protobuf 3, gRPC 1.60+
+
+syntax = "proto3";
+
+package sarai.skills;
+
+// Servicio principal del skill
+service SkillService {
+  // Ejecuta una query en el skill LLM
+  rpc Execute(ExecuteRequest) returns (ExecuteResponse);
+  
+  // Health check (integración con Docker HEALTHCHECK)
+  rpc Health(HealthRequest) returns (HealthResponse);
+  
+  // Estadísticas del skill (métricas Prometheus)
+  rpc Stats(StatsRequest) returns (StatsResponse);
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Execute - Query principal
+// ══════════════════════════════════════════════════════════════════════════
+
+message ExecuteRequest {
+  // Query del usuario (máx 2048 chars)
+  string query = 1;
+  
+  // Máximo de tokens a generar (default: 128)
+  int32 max_tokens = 2;
+  
+  // Temperatura (default: 0.7)
+  float temperature = 3;
+  
+  // Timeout en segundos (default: 30)
+  int32 timeout_seconds = 4;
+  
+  // Contexto adicional (opcional)
+  map<string, string> context = 5;
+}
+
+message ExecuteResponse {
+  // Respuesta generada por el LLM
+  string response = 1;
+  
+  // Confianza semántica (0.0-1.0)
+  float confidence = 2;
+  
+  // Latencia en milisegundos
+  int64 latency_ms = 3;
+  
+  // Modelo usado (ej: "sql.gguf")
+  string model = 4;
+  
+  // Tokens generados
+  int32 tokens_generated = 5;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Health - Health check
+// ══════════════════════════════════════════════════════════════════════════
+
+message HealthRequest {
+  // Vacío (solo ping)
+}
+
+message HealthResponse {
+  enum Status {
+    UNKNOWN = 0;
+    HEALTHY = 1;
+    DEGRADED = 2;
+    UNAVAILABLE = 3;
+  }
+  
+  Status status = 1;
+  string message = 2;
+  
+  // Reload count (hot-reloads realizados)
+  int32 reload_count = 3;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Stats - Métricas Prometheus
+// ══════════════════════════════════════════════════════════════════════════
+
+message StatsRequest {
+  // Vacío
+}
+
+message StatsResponse {
+  // Total de requests procesados
+  int64 total_requests = 1;
+  
+  // Requests en error
+  int64 failed_requests = 2;
+  
+  // Latencia promedio (ms)
+  float avg_latency_ms = 3;
+  
+  // Latencia P99 (ms)
+  float p99_latency_ms = 4;
+  
+  // Uso de RAM (bytes)
+  int64 ram_bytes = 5;
+  
+  // Uptime (segundos)
+  int64 uptime_seconds = 6;
+}

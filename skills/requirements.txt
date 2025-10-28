@@ -1,0 +1,13 @@
+# skills/requirements.txt - Dependencies para Skills-as-Services v2.12
+
+# gRPC stack (ligero, ~15 MB)
+grpcio==1.60.0
+grpcio-reflection==1.60.0
+grpcio-tools==1.60.0
+protobuf==4.25.1
+
+# llama-cpp-python (ya instalado en runtime-v2.11 base)
+# llama-cpp-python==0.2.20  # Reutilizado de base
+
+# Logging estructurado
+structlog==24.1.0
