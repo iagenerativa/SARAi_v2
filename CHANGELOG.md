@@ -7,6 +7,100 @@ y este proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
 **Licencia**: Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)
 
+---
+
+## [Unreleased] - Roadmap v2.13 → v2.15 "Sentience"
+
+### 🧠 Road to Sentience (Planned)
+
+SARAi evoluciona de **asistente reactivo** → **agente proactivo auto-mejorable**
+
+**Timeline**: Nov 8 - Nov 25, 2025 (18 días)  
+**LOC Total**: ~6,800 (4,200 prod + 2,600 tests)
+
+---
+
+## [2.15.0] - 2025-11-25 - Antifragilidad (Planned)
+
+### Añadido
+- **Self-Repair System** (3 niveles):
+  - Nivel 1: Config hot-reload (sin reinicio)
+  - Nivel 2: Code patching (contenedores efímeros + GPG)
+  - Nivel 3: Model swap (fallback)
+- **Red Team Autónomo**:
+  - Fuzzer automático (50 mutaciones/prompt)
+  - Logging HMAC de cada intento adversarial
+  - Informe semanal de vulnerabilidades
+  - Sandbox isolation con firejail
+
+### KPIs v2.15
+- Auto-reparado: ≥30% (Realista: 33%)
+- Chaos coverage: ≥80% (Realista: 82%)
+- Disponibilidad: 99.99%
+- Rollback time: <10s
+
+### Infraestructura
+- Patch system con GPG verification
+- Ephemeral containers (`--read-only`, `--network=none`)
+- HMAC audit logging completo
+- Supervisord orchestration reforzado
+
+---
+
+## [2.14.0] - 2025-11-19 - Aceleración CPU-Friendly (Planned)
+
+### Añadido
+- **Speculative Decoding** (Alternativo):
+  - Draft LLM: Qwen2.5-0.5B-IQ2 (<400MB)
+  - Target LLM: SOLAR-10.7B (verificación)
+  - Fallback adaptativo si acceptance <60%
+  - Dynamic Early Exit (adaptive k)
+- **Grammar Constraints**:
+  - llama_sample_grammar para JSON, Python, SQL, Markdown
+  - Reduce tokens inválidos ~40%
+  - Skills con output estructurado garantizado
+
+### KPIs v2.14
+- **Latencia P50**: ≤12s (Realista: 10-11s) - **Ganancia: -44% ⚡**
+- Speculative speedup: 2-3x
+- Acceptance rate: ≥60%
+- RAM overhead: <500MB (draft LLM)
+
+### Optimizaciones
+- Draft LLM carga bajo demanda
+- Logging Prometheus de acceptance rate
+- Grammar precompiladas en cache
+
+---
+
+## [2.13.0] - 2025-11-12 - Proactividad + Memoria Persistente (Planned)
+
+### Añadido
+- **Proactive Loop Sentinel**:
+  - Supervisord orchestration (restart automático)
+  - Triggers: `@hourly`, `@daily`, `@weekly`, `@event`
+  - Acciones: RAM check, log rotation, cache prune, user suggestions
+  - Resource limits: `--cpus=1 --memory=1g --read-only`
+- **Persistent Entity Memory**:
+  - SQLite con schema SVO (sujeto-verbo-objeto)
+  - Índice triple para queries <5ms
+  - spaCy NER integration (`es_core_news_sm`)
+  - VACUUM automático diario (evita bloat)
+  - Rotación: DELETE WHERE timestamp < NOW() - 90 días
+
+### KPIs v2.13
+- Proactive Actions/h: ≥5 (Realista: 7)
+- Entity Recall: ≥85% (Realista: 87%)
+- DB size: <500MB (post 90 días)
+- VACUUM speedup: >30%
+
+### Infraestructura
+- supervisord.conf con 3 programas (api, loop, red_team)
+- SQLite con índices optimizados
+- LangGraph node: `_store_entities()`
+
+---
+
 ## [2.11.0] - 2025-10-27 - Omni-Sentinel (Voz Empática + Infra Blindada) 🎤🏠
 
 ### 🔐 Cambio de Licencia
