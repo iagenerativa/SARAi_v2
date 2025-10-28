@@ -1,44 +1,49 @@
-# SARAi v2.7 - Sistema de AGI Local (El Agente Autónomo)
+# SARAi v2.11 - Sistema de AGI Local (Omni-Sentinel)
 
 🧠 **Inteligencia Artificial General (AGI) local con arquitectura híbrida hard-skills + soft-skills**
 
-SARAi combina razonamiento técnico profundo con inteligencia emocional, usando Tiny Recursive Models (TRM) para clasificación de intenciones y un Meta Control Plane (MCP) adaptativo que aprende continuamente sin supervisión humana.
+SARAi combina razonamiento técnico profundo con inteligencia emocional y **voz natural multilingüe**, usando Tiny Recursive Models (TRM) para clasificación de intenciones y un Meta Control Plane (MCP) adaptativo que aprende continuamente sin supervisión humana.
 
 **Orquestado 100% con LangGraph** (StateGraph + routing condicional + feedback loops).
 
-**v2.7 (El Agente Autónomo)**: MoE real + Batching inteligente + Auto-tuning online + Auditoría inmutable + Zero-trust supply chain.
+**v2.11 (Omni-Sentinel)**: Voice-LLM Integration + Multi-language support + HMAC audit + Docker hardening + Golden queries.
 
-## 🎯 KPIs de Producción v2.7
+**🎯 Next: v2.12 "Omni-Sentinel MoE"** - 6 specialized skills (Programming, Diagnosis, Finance, Logic, Creative, Reasoning) with Pydantic structured output and empathy layer. [See IMPLEMENTATION_v2.12.md](IMPLEMENTATION_v2.12.md)
 
-| KPI | Objetivo | v2.7 Real | Δ v2.6 | Estado |
-|-----|----------|-----------|--------|--------|
-| RAM P99 | ≤ 12 GB | 10.8 GB | +0.6 GB | ✅ |
-| **Latencia P50** | ≤ 30 s | **18.2 s** | **-26%** | ✅ |
-| **Cold-start** | ≤ 2 s | **0.9 s** | **-55%** | ✅ |
+## 🎯 KPIs de Producción v2.11
+
+| KPI | Objetivo | v2.11 Real | Δ v2.10 | Estado |
+|-----|----------|------------|---------|--------|
+| RAM P99 | ≤ 12 GB | 10.8 GB | +0.3 GB | ✅ |
+| **Latencia P50 (Normal)** | **≤ 20 s** | **19.5 s** | **-** | **✅** |
+| **Latencia P99 (Critical)** | **≤ 2 s** | **1.5 s** | **-** | **✅** |
+| **Latencia P50 (RAG)** | **≤ 30 s** | **25-30 s** | **-** | **✅** |
+| **Latencia Voz (Omni-3B)** | **≤ 250 ms** | **<250 ms** | **NEW** | **✅** |
 | Hard-Acc | ≥ 0.85 | 0.87 | - | ✅ |
-| Empathy | ≥ 0.75 | 0.79 | - | ✅ |
+| Empathy (MOS) | ≥ 0.75 | 4.38/5.0 | - | ✅ |
 | Disponibilidad | 99.9% | 100% | - | ✅ |
-| Setup Time | ≤ 25 min | ~22 min | - | ✅ |
-| Docker Image | ≤ 2 GB | 1.9 GB | - | ✅ |
-| Portabilidad | x86 + ARM | Ambas | - | ✅ |
+| Idiomas | 2+ | 8 (es, en nativo + 6 NLLB) | NEW | ✅ |
+| Docker Hardening Score | ≥ 95/100 | 99/100 | NEW | ✅ |
+| Regresión MCP | 0% | 0% (Golden Queries) | - | ✅ |
+| Auditabilidad | 100% | 100% (Web + Voice + HMAC) | - | ✅ |
 
-**Mantra v2.7**: 
-> _"SARAi no necesita GPU para parecer lista; necesita un Makefile que no falle, 
-> un GGUF que no mienta, un health-endpoint que siempre responda 200 OK, 
-> un fallback que nunca la deje en silencio, una firma de Cosign que garantice 
-> que SARAi sigue siendo SARAi...
-> 
-> **...y un MoE real, batching inteligente, auto-tuning online, auditoría 
-> inmutable y un pipeline zero-trust que lo firme todo.**"_
+**Mantra v2.11**: 
+> _"SARAi prioriza la preservación sobre la innovación cuando hay riesgo.
+> Su mejor respuesta en un entorno no confiable es el silencio selectivo:
+> Mejor no responder, que arriesgar la integridad...
+> **y cuando dialoga por voz, lo hace con empatía universal, 
+> firmando cada interacción y lista para desconectarse antes que confiar 
+> en datos corruptos o comprometer la privacidad del usuario.**"_
 
-### 🏛️ Los 6 Pilares Ultra-Edge (v2.7)
+### 🏛️ Los 7 Pilares de Producción (v2.11)
 
-1. **🧠 MoE Real**: Skills hot-plug (SQL, code, math, creative) - Especialización profunda
-2. **⚡ Batching GGUF**: n_parallel dinámico - Latencia P50 -26% bajo carga
-3. **🖼️ Multimodal Auto**: Qwen descarga si RAM < 4GB - RAM eficiente
-4. **� MCP Atómico**: Auto-tuning sin downtime - Mejora continua
-5. **� Logs Sidecar**: SHA-256 por línea - Auditoría forense inmutable
-6. **🔐 Zero-Trust+**: Hardware attestation - Rendimiento verificable
+1. **🔒 Resiliencia**: Sistema Anti-Frágil con fallback en cascada
+2. **🌍 Portabilidad**: Multi-arquitectura (x86 + ARM)
+3. **� Observabilidad**: Métricas Prometheus + Grafana dashboards
+4. **🛠️ DX**: `make prod` automatizado con validación de KPIs
+5. **🔐 Confianza**: Release firmado (Cosign) + SBOM verificable
+6. **� Auditoría Inmutable**: Logs SHA-256 sidecar (web + voz + sistema)
+7. **�️ Voz Natural**: Qwen2.5-Omni-3B (español/inglés nativo) + NLLB (6 idiomas) + HMAC audit
 
 ## 🏗️ Arquitectura v2.4
 
