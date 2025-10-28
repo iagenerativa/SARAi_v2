@@ -4,9 +4,10 @@ agents/emotion_modulator.py
 Modulador emocional para SARAi v2.11
 Detecta emociones en audio y ajusta respuestas según contexto afectivo
 
-Features v2.11.1:
+Features v2.11.2 (COMPLETE):
 - Detección multi-heurística (energía, ZCR, espectral, textual)
-- **NEW**: MFCC + Chroma + Spectral features (LibROSA)
+- MFCC + Chroma + Spectral features (LibROSA)
+- **NEW**: Modelo pre-entrenado (Wav2Vec2) con lazy loading
 - Análisis de trayectoria emocional conversacional
 - Blend de emociones secundarias
 - Keywords contextuales español/inglés
@@ -20,7 +21,7 @@ from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 import logging
 
-# NEW v2.11.1: Importar acoustic features si disponible
+# Acoustic features (v2.11.1)
 try:
     from agents.emotion_features import (
         EmotionFeatureExtractor,
@@ -30,6 +31,17 @@ try:
     USE_LIBROSA_FEATURES = LIBROSA_AVAILABLE
 except ImportError:
     USE_LIBROSA_FEATURES = False
+
+# Pre-trained models (v2.11.2)
+try:
+    from agents.emotion_model import (
+        EmotionModelWrapper,
+        map_emotion_to_category,
+        TRANSFORMERS_AVAILABLE
+    )
+    USE_PRETRAINED_MODEL = TRANSFORMERS_AVAILABLE
+except ImportError:
+    USE_PRETRAINED_MODEL = False
 
 logger = logging.getLogger(__name__)
 
@@ -123,29 +135,40 @@ class EmotionModulator:
         self,
         model_path: Optional[str] = None,
         emotion_vectors_path: Optional[str] = "models/emotion_vectors.npy",
-        sample_rate: int = 16000  # NEW v2.11.1
+        sample_rate: int = 16000,  # v2.11.1
+        use_pretrained: bool = True  # NEW v2.11.2
     ):
         """
         Inicializa modulador emocional
         
         Args:
-            model_path: Path al modelo de detección (si None, usa heurísticas)
+            model_path: Path/nombre del modelo HF (si None, auto-select wav2vec2-emotion-en)
             emotion_vectors_path: Path a vectores emocionales pre-calculados
-            sample_rate: Sample rate del audio en Hz (NEW v2.11.1)
+            sample_rate: Sample rate del audio en Hz
+            use_pretrained: Si True, usa modelo pre-entrenado (si disponible)
         """
         self.model_path = model_path
         self.emotion_vectors_path = emotion_vectors_path
-        self.sample_rate = sample_rate  # NEW v2.11.1
+        self.sample_rate = sample_rate
+        self.use_pretrained = use_pretrained
         
         # Lazy loading (cargar solo cuando se necesite)
-        self._emotion_model = None
+        self._emotion_model = None  # Modelo pre-entrenado (v2.11.2)
         self._emotion_vectors = None
         
-        # NEW v2.11.1: Inicializar extractor de features acústicas
+        # v2.11.1: Inicializar extractor de features acústicas
         if USE_LIBROSA_FEATURES:
             self.feature_extractor = EmotionFeatureExtractor(sample_rate)
             logger.info("✅ EmotionModulator con LibROSA features (MFCC, chroma)")
         else:
+            self.feature_extractor = None
+            logger.warning("⚠️  EmotionModulator sin LibROSA (heurísticas básicas)")
+        
+        # v2.11.2: Log modelo pre-entrenado si habilitado
+        if use_pretrained and USE_PRETRAINED_MODEL:
+            logger.info("🧠 EmotionModulator con modelo pre-entrenado (lazy load)")
+        elif use_pretrained and not USE_PRETRAINED_MODEL:
+            logger.warning("⚠️  Modelo pre-entrenado solicitado pero transformers no disponible")
             self.feature_extractor = None
             logger.warning("⚠️  EmotionModulator sin LibROSA (heurísticas básicas)")
         
@@ -160,6 +183,40 @@ class EmotionModulator:
             "avg_delta_norm": 0.0,
             "emotion_distribution": {e: 0 for e in EmotionCategory}
         }
+    
+    def load_pretrained_model(self) -> Optional[EmotionModelWrapper]:
+        """
+        Carga modelo pre-entrenado (lazy loading)
+        
+        Returns:
+            EmotionModelWrapper o None si no disponible
+        
+        Note:
+            Solo se carga una vez (cached en self._emotion_model)
+        """
+        if self._emotion_model is not None:
+            return self._emotion_model
+        
+        if not self.use_pretrained or not USE_PRETRAINED_MODEL:
+            return None
+        
+        try:
+            # Usar model_path si especificado, sino wav2vec2-emotion-en
+            model_name = self.model_path or "wav2vec2-emotion-en"
+            
+            self._emotion_model = EmotionModelWrapper(
+                model_name=model_name,
+                device=None,  # Auto-detect CPU/GPU
+                cache_dir="models/cache/emotion"
+            )
+            
+            logger.info(f"✅ Modelo pre-entrenado cargado: {model_name}")
+            return self._emotion_model
+            
+        except Exception as e:
+            logger.error(f"❌ No se pudo cargar modelo pre-entrenado: {e}")
+            logger.info("📉 Fallback a heurísticas + LibROSA features")
+            return None
     
     def load_emotion_vectors(self) -> Dict[EmotionCategory, np.ndarray]:
         """
@@ -219,16 +276,73 @@ class EmotionModulator:
         Returns:
             EmotionProfile con emoción detectada + confianza
         
-        Algorithm v2.11.1:
-            1. **NEW**: Si LibROSA disponible, extrae MFCC+chroma+spectral
-            2. Extrae características acústicas básicas (energía, ZCR, espectral)
-            3. Analiza texto si disponible (keywords emocionales)
-            4. **NEW**: Combina scores LibROSA + heurísticas + textuales
+        Algorithm v2.11.2 (PRIORIDAD):
+            1. **PRIORITY 1**: Modelo pre-entrenado (Wav2Vec2) si disponible
+            2. **PRIORITY 2**: Si falla, LibROSA features (MFCC+chroma+spectral)
+            3. **PRIORITY 3**: Heurísticas básicas (energía, ZCR)
+            4. **ALWAYS**: Análisis textual si disponible (keywords emocionales)
             5. Selecciona emoción primaria + secundaria (si aplica)
         
         Note:
-            Fase 2 integrará modelo pre-entrenado (emoDBert, WavLM-emotion)
+            Fase 2 completa - modelo pre-entrenado integrado
         """
+        # ====================================================================
+        # PRIORITY 1: Modelo pre-entrenado (v2.11.2)
+        # ====================================================================
+        pretrained_model = self.load_pretrained_model()
+        
+        if pretrained_model is not None:
+            try:
+                prediction = pretrained_model.predict(
+                    audio_features,
+                    sample_rate=self.sample_rate
+                )
+                
+                # Normalizar label del modelo a EmotionCategory
+                emotion_str = map_emotion_to_category(prediction.emotion)
+                
+                # Mapear a EmotionCategory enum
+                try:
+                    primary_emotion = EmotionCategory[emotion_str.upper()]
+                except KeyError:
+                    primary_emotion = EmotionCategory.NEUTRAL
+                
+                # Detectar emoción secundaria (2º score más alto)
+                sorted_scores = sorted(
+                    prediction.all_scores.items(),
+                    key=lambda x: x[1],
+                    reverse=True
+                )
+                
+                secondary_emotion = None
+                if len(sorted_scores) > 1 and sorted_scores[1][1] > 0.2:
+                    sec_str = map_emotion_to_category(sorted_scores[1][0])
+                    try:
+                        secondary_emotion = EmotionCategory[sec_str.upper()]
+                    except KeyError:
+                        pass
+                
+                logger.debug(f"🧠 Modelo pre-entrenado: {primary_emotion.value} ({prediction.confidence:.2f})")
+                
+                return EmotionProfile(
+                    primary=primary_emotion,
+                    secondary=secondary_emotion,
+                    intensity=prediction.confidence,  # Usar confianza como intensidad
+                    confidence=prediction.confidence,
+                    raw_scores={
+                        EmotionCategory[map_emotion_to_category(k).upper()]: v
+                        for k, v in prediction.all_scores.items()
+                        if map_emotion_to_category(k).upper() in EmotionCategory.__members__
+                    }
+                )
+                
+            except Exception as e:
+                logger.warning(f"⚠️  Modelo pre-entrenado falló: {e}. Fallback a features/heurísticas")
+                # Continuar con fallback
+        
+        # ====================================================================
+        # PRIORITY 2/3: LibROSA features + Heurísticas básicas
+        # ====================================================================
         # PASO 0 (NEW v2.11.1): Features acústicas avanzadas con LibROSA
         if USE_LIBROSA_FEATURES and self.feature_extractor is not None:
             try:

@@ -113,8 +113,9 @@ class TestEmotionModulator:
             assert np.isclose(np.linalg.norm(vec), 1.0, atol=1e-5)
     
     def test_detect_emotion_heuristic(self):
-        """Test detección heurística de emoción"""
-        modulator = EmotionModulator()
+        """Test detección heurística de emoción (sin modelo pre-entrenado)"""
+        # Deshabilitar modelo pre-entrenado para test de heurísticas
+        modulator = EmotionModulator(use_pretrained=False)
         
         # Test 1: Audio con energía alta → EXCITED/ANGRY (depende de LibROSA)
         high_energy_audio = np.random.randn(16000) * 0.8
