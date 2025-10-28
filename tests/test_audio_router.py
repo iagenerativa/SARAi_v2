@@ -10,6 +10,7 @@ Valida el comportamiento del router con diferentes escenarios:
 
 import pytest
 import os
+import numpy as np
 from unittest.mock import Mock, patch, MagicMock
 from agents.audio_router import (
     route_audio,
@@ -100,10 +101,7 @@ class TestLanguageDetector:
         mock_ft.load_model.return_value = mock_ft_model
         
         detector = LanguageDetector()
-        
-        # Mock soundfile para evitar error con bytes falsos
-        with patch('agents.audio_router.sf.read', return_value=(np.zeros(1000), 16000)):
-            lang = detector.detect(sample_audio_bytes)
+        lang = detector.detect(sample_audio_bytes)
         
         assert lang == "es"
     
@@ -120,9 +118,7 @@ class TestLanguageDetector:
         mock_ft.load_model.return_value = mock_ft_model
         
         detector = LanguageDetector()
-        
-        with patch('agents.audio_router.sf.read', return_value=(np.zeros(1000), 16000)):
-            lang = detector.detect(sample_audio_bytes)
+        lang = detector.detect(sample_audio_bytes)
         
         assert lang == "en"
     
@@ -134,13 +130,10 @@ class TestLanguageDetector:
         mock_whisper.load_model.return_value = mock_whisper_model
         
         detector = LanguageDetector()
-        
-        with patch('agents.audio_router.sf.read', return_value=(np.zeros(1000), 16000)):
-            lang = detector.detect(sample_audio_bytes)
+        lang = detector.detect(sample_audio_bytes)
         
         # Debe asumir español por defecto
         assert lang == "es"
-
 
 class TestAudioRouter:
     """Tests para la lógica de enrutamiento"""

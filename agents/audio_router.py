@@ -83,10 +83,18 @@ class AudioConfig:
     """Configuración de audio router desde .env"""
     
     def __init__(self):
-        self.engine = AUDIO_ENGINE
-        self.languages = NLLB_LANGS
-        self.omni_langs = OMNI_LANGS
-        self.nllb_langs = [l for l in NLLB_LANGS if l not in OMNI_LANGS]
+        # Leer env vars en tiempo de ejecución (no usar globales)
+        self.engine = os.getenv("AUDIO_ENGINE", "omni3b")
+        
+        # Parse languages
+        languages_str = os.getenv("LANGUAGES", "es,en,fr,de,ja")
+        self.languages = [lang.strip() for lang in languages_str.split(",")]
+        
+        # Omni langs son siempre es, en
+        self.omni_langs = ["es", "en"]
+        
+        # NLLB langs son los que NO están en omni_langs
+        self.nllb_langs = [l for l in self.languages if l not in self.omni_langs]
 
 
 def get_audio_config() -> AudioConfig:
@@ -238,26 +246,38 @@ def route_audio(audio_bytes: bytes) -> Tuple[str, bytes, Optional[str]]:
         logger.warning("🚨 Safe Mode activo - Voz bloqueada, usando LFM2")
         return ("lfm2", audio_bytes, None)
     
-    # 2. Flag AUDIO_ENGINE
-    if AUDIO_ENGINE == "disabled":
+    # 2. Flag AUDIO_ENGINE (leer en runtime, no global)
+    audio_engine = os.getenv("AUDIO_ENGINE", "omni3b")
+    
+    if audio_engine == "disabled":
         logger.info("🔇 AUDIO_ENGINE=disabled, usando LFM2")
         return ("lfm2", audio_bytes, None)
     
-    if AUDIO_ENGINE == "lfm2":
+    if audio_engine == "lfm2":
         logger.info("📝 AUDIO_ENGINE=lfm2, modo solo texto")
         return ("lfm2", audio_bytes, None)
     
     # 3. Detección de idioma
     detector = get_language_detector()
-    lang = detector.detect(audio_bytes)
     
-    # 4. Enrutamiento
+    try:
+        lang = detector.detect(audio_bytes)
+    except Exception as e:
+        # SENTINEL FALLBACK: Si falla LID → Omni-es
+        logger.error(f"❌ Error en LID: {e}. Fallback a Omni-es.")
+        return ("omni", audio_bytes, "es")
+    
+    # 4. Enrutamiento por idioma
+    # Leer NLLB_LANGS de env
+    languages_str = os.getenv("LANGUAGES", "es,en,fr,de,ja")
+    nllb_langs = [l.strip() for l in languages_str.split(",")]
+    
     if lang in OMNI_LANGS:
-        # Idioma nativo de Omni-3B (alta empatía, baja latencia)
-        logger.info(f"🎤 Idioma '{lang}' soportado nativamente por Omni-3B")
+        # Idioma nativo de Omni-3B
+        logger.info(f"✅ Idioma '{lang}' soportado nativamente por Omni-3B")
         return ("omni", audio_bytes, None)
     
-    elif lang in NLLB_LANGS and AUDIO_ENGINE == "nllb":
+    elif lang in nllb_langs and audio_engine == "nllb":
         # Idioma requiere traducción
         logger.info(f"🌐 Idioma '{lang}' requiere traducción NLLB")
         return ("nllb", audio_bytes, lang)
