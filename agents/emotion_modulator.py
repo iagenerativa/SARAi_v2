@@ -1,20 +1,37 @@
 """
 agents/emotion_modulator.py
 
-Módulo de modulación emocional para Qwen2.5-Omni-3B.
-Ajusta embeddings según perfil emocional detectado.
+Modulador emocional para SARAi v2.11
+Detecta emociones en audio y ajusta respuestas según contexto afectivo
 
-Filosofía v2.11: "La empatía no es solo palabras, es resonancia vectorial"
+Features v2.11.1:
+- Detección multi-heurística (energía, ZCR, espectral, textual)
+- **NEW**: MFCC + Chroma + Spectral features (LibROSA)
+- Análisis de trayectoria emocional conversacional
+- Blend de emociones secundarias
+- Keywords contextuales español/inglés
 
-KPIs Objetivo:
-- MOS Empatía: ≥4.0/5.0
-- Latencia modulación: ≤50ms
-- Precisión detección: ≥85%
-
-Author: SARAi Team
+Author: SARAi v2.11
 Date: 2025-10-28
-Version: 2.11
 """
+
+import numpy as np
+from typing import Dict, List, Optional, Tuple
+from dataclasses import dataclass
+import logging
+
+# NEW v2.11.1: Importar acoustic features si disponible
+try:
+    from agents.emotion_features import (
+        EmotionFeatureExtractor,
+        features_to_emotion_heuristic,
+        LIBROSA_AVAILABLE
+    )
+    USE_LIBROSA_FEATURES = LIBROSA_AVAILABLE
+except ImportError:
+    USE_LIBROSA_FEATURES = False
+
+logger = logging.getLogger(__name__)
 
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
@@ -105,7 +122,8 @@ class EmotionModulator:
     def __init__(
         self,
         model_path: Optional[str] = None,
-        emotion_vectors_path: Optional[str] = "models/emotion_vectors.npy"
+        emotion_vectors_path: Optional[str] = "models/emotion_vectors.npy",
+        sample_rate: int = 16000  # NEW v2.11.1
     ):
         """
         Inicializa modulador emocional
@@ -113,13 +131,23 @@ class EmotionModulator:
         Args:
             model_path: Path al modelo de detección (si None, usa heurísticas)
             emotion_vectors_path: Path a vectores emocionales pre-calculados
+            sample_rate: Sample rate del audio en Hz (NEW v2.11.1)
         """
         self.model_path = model_path
         self.emotion_vectors_path = emotion_vectors_path
+        self.sample_rate = sample_rate  # NEW v2.11.1
         
         # Lazy loading (cargar solo cuando se necesite)
         self._emotion_model = None
         self._emotion_vectors = None
+        
+        # NEW v2.11.1: Inicializar extractor de features acústicas
+        if USE_LIBROSA_FEATURES:
+            self.feature_extractor = EmotionFeatureExtractor(sample_rate)
+            logger.info("✅ EmotionModulator con LibROSA features (MFCC, chroma)")
+        else:
+            self.feature_extractor = None
+            logger.warning("⚠️  EmotionModulator sin LibROSA (heurísticas básicas)")
         
         # Parámetros de modulación (tuneables)
         self.modulation_strength = 0.3  # [0, 1] - qué tanto ajustar
@@ -191,45 +219,87 @@ class EmotionModulator:
         Returns:
             EmotionProfile con emoción detectada + confianza
         
-        Algorithm (Fase 1 - Heurísticas):
-            1. Extrae características acústicas (energía, ZCR, espectral)
-            2. Analiza texto si disponible (keywords emocionales)
-            3. Combina scores acústicos + textuales
-            4. Selecciona emoción primaria + secundaria (si aplica)
+        Algorithm v2.11.1:
+            1. **NEW**: Si LibROSA disponible, extrae MFCC+chroma+spectral
+            2. Extrae características acústicas básicas (energía, ZCR, espectral)
+            3. Analiza texto si disponible (keywords emocionales)
+            4. **NEW**: Combina scores LibROSA + heurísticas + textuales
+            5. Selecciona emoción primaria + secundaria (si aplica)
         
         Note:
             Fase 2 integrará modelo pre-entrenado (emoDBert, WavLM-emotion)
         """
-        # PASO 1: Características acústicas
-        mean_energy = np.mean(np.abs(audio_features))
-        max_energy = np.max(np.abs(audio_features))
-        std_energy = np.std(audio_features)
+        # PASO 0 (NEW v2.11.1): Features acústicas avanzadas con LibROSA
+        if USE_LIBROSA_FEATURES and self.feature_extractor is not None:
+            try:
+                acoustic_features = self.feature_extractor.extract(audio_features)
+                librosa_scores = features_to_emotion_heuristic(acoustic_features)
+                
+                logger.debug(f"🎵 LibROSA scores: {librosa_scores}")
+                
+                # Usar scores de LibROSA como base
+                emotion_scores = {
+                    EmotionCategory.HAPPY: librosa_scores.get("happy", 0.0),
+                    EmotionCategory.SAD: librosa_scores.get("sad", 0.0),
+                    EmotionCategory.ANGRY: librosa_scores.get("angry", 0.0),
+                    EmotionCategory.FEARFUL: librosa_scores.get("fearful", 0.0),
+                    EmotionCategory.SURPRISED: librosa_scores.get("surprised", 0.0),
+                    EmotionCategory.CALM: librosa_scores.get("calm", 0.0),
+                    EmotionCategory.EXCITED: librosa_scores.get("excited", 0.0),
+                    EmotionCategory.NEUTRAL: librosa_scores.get("neutral", 0.0),
+                    EmotionCategory.DISGUSTED: 0.0  # No en heurística básica
+                }
+                
+                # Añadir peso adicional de heurísticas básicas (blend)
+                use_basic_heuristics = True
+                base_weight = 0.4  # 60% LibROSA, 40% heurísticas básicas
+                
+            except Exception as e:
+                logger.warning(f"⚠️  LibROSA feature extraction falló: {e}")
+                use_basic_heuristics = True
+                base_weight = 1.0
+                emotion_scores = {e: 0.0 for e in EmotionCategory}
+        else:
+            # Fallback: solo heurísticas básicas
+            use_basic_heuristics = True
+            base_weight = 1.0
+            emotion_scores = {e: 0.0 for e in EmotionCategory}
         
-        # Zero-Crossing Rate (correlación con pitch/excitación)
-        zcr = np.mean(np.abs(np.diff(np.sign(audio_features)))) / 2.0
-        
-        # Inicializar scores
-        emotion_scores = {e: 0.0 for e in EmotionCategory}
-        
-        # HEURÍSTICA 1: Energía alta → Excited/Angry
-        if max_energy > 0.7:
-            emotion_scores[EmotionCategory.EXCITED] += 0.6
-            emotion_scores[EmotionCategory.ANGRY] += 0.3 * (std_energy / 0.5)
-        
-        # HEURÍSTICA 2: Energía baja → Sad/Calm
-        elif mean_energy < 0.2:
-            emotion_scores[EmotionCategory.SAD] += 0.5
-            emotion_scores[EmotionCategory.CALM] += 0.3
-        
-        # HEURÍSTICA 3: Alta varianza → Angry/Fearful
-        if std_energy > 0.3:
-            emotion_scores[EmotionCategory.ANGRY] += 0.4
-            emotion_scores[EmotionCategory.FEARFUL] += 0.2
-        
-        # HEURÍSTICA 4: ZCR alto → Excited/Surprised
-        if zcr > 0.15:
-            emotion_scores[EmotionCategory.EXCITED] += 0.3
-            emotion_scores[EmotionCategory.SURPRISED] += 0.2
+        # PASO 1: Características acústicas básicas (siempre ejecutar si weight > 0)
+        if use_basic_heuristics and base_weight > 0:
+            mean_energy = np.mean(np.abs(audio_features))
+            max_energy = np.max(np.abs(audio_features))
+            std_energy = np.std(audio_features)
+            
+            # Zero-Crossing Rate (correlación con pitch/excitación)
+            zcr = np.mean(np.abs(np.diff(np.sign(audio_features)))) / 2.0
+            
+            # Scores básicos
+            basic_scores = {e: 0.0 for e in EmotionCategory}
+            
+            # HEURÍSTICA 1: Energía alta → Excited/Angry
+            if max_energy > 0.7:
+                basic_scores[EmotionCategory.EXCITED] += 0.6
+                basic_scores[EmotionCategory.ANGRY] += 0.3 * (std_energy / 0.5)
+            
+            # HEURÍSTICA 2: Energía baja → Sad/Calm
+            elif mean_energy < 0.2:
+                basic_scores[EmotionCategory.SAD] += 0.5
+                basic_scores[EmotionCategory.CALM] += 0.3
+            
+            # HEURÍSTICA 3: Alta varianza → Angry/Fearful
+            if std_energy > 0.3:
+                basic_scores[EmotionCategory.ANGRY] += 0.4
+                basic_scores[EmotionCategory.FEARFUL] += 0.2
+            
+            # HEURÍSTICA 4: ZCR alto → Excited/Surprised
+            if zcr > 0.15:
+                basic_scores[EmotionCategory.EXCITED] += 0.3
+                basic_scores[EmotionCategory.SURPRISED] += 0.2
+            
+            # Blend LibROSA + básicas (si aplica)
+            for emotion in EmotionCategory:
+                emotion_scores[emotion] += basic_scores[emotion] * base_weight
         
         # PASO 2: Análisis textual (si disponible)
         if text:
