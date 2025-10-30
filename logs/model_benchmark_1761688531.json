@@ -1,0 +1,51 @@
+{
+  "timestamp": 1761688531.4212754,
+  "stack_version": "v2.16",
+  "backend": "llama-cpp-python",
+  "total_ram_gb": 14.09,
+  "total_size_gb": 8.97,
+  "models": [
+    {
+      "model": "solar-10.7b-instruct-v1.0.Q4_K_M.gguf",
+      "n_ctx": 2048,
+      "n_threads": 6,
+      "load_time_s": 74.25,
+      "ram_used_gb": 10.55,
+      "model_size_gb": 6.02,
+      "inference_time_s": 77.4,
+      "tokens_generated": 200,
+      "tokens_prompt": 29,
+      "tokens_per_sec": 2.58,
+      "response_preview": "Backpropagation es un algoritmo utilizado en redes neuronales artificiales (RNA) para ajustar sus pesos y bios con el fin de minimizar una funci\u00f3n de p\u00e9rdida o error. Este proceso se conoce como entre",
+      "role": "Expert (Hard Skills)"
+    },
+    {
+      "model": "LFM2-1.2B-Q4_K_M.gguf",
+      "n_ctx": 2048,
+      "n_threads": 6,
+      "load_time_s": 6.53,
+      "ram_used_gb": 1.18,
+      "model_size_gb": 0.68,
+      "inference_time_s": 8.66,
+      "tokens_generated": 200,
+      "tokens_prompt": 28,
+      "tokens_per_sec": 23.1,
+      "response_preview": "Aqu\u00ed hay algunas cosas que podr\u00edas probar:\n\n1. Simplifica el problema: intenta una versi\u00f3n m\u00e1s peque\u00f1a y b\u00e1sica del c\u00f3digo. Intenta ejecutar solo la parte que crees que causa el problema.\n2. Revisa la",
+      "role": "Tiny Tier (Soft Skills)"
+    },
+    {
+      "model": "Qwen3-VL-4B-Instruct-Q5_K_M.gguf",
+      "n_ctx": 2048,
+      "n_threads": 6,
+      "load_time_s": 20.45,
+      "ram_used_gb": 2.36,
+      "model_size_gb": 2.27,
+      "inference_time_s": 25.08,
+      "tokens_generated": 200,
+      "tokens_prompt": 21,
+      "tokens_per_sec": 7.97,
+      "response_preview": "Los asistentes multimodales son sistemas de inteligencia artificial que pueden procesar y responder a informaci\u00f3n en varios formatos, como texto, im\u00e1genes, videos y sonido. Estos asistentes son \u00fatiles",
+      "role": "Omni-Loop (Reflexi\u00f3n)"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "epochs": 30,
+  "batch_size": 64,
+  "learning_rate": 0.0005,
+  "val_accuracy": 0.9966,
+  "classes": ['TRM', 'LLM', 'Traducir']
+}

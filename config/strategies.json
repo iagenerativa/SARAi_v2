@@ -1,0 +1,82 @@
+{
+  "comment": "Catálogo de estrategias de build para llama.cpp Hybrid System",
+  "version": "1.0.0",
+  "last_updated": "2025-10-29",
+  
+  "strategies": {
+    "avx512-16t": {
+      "description": "Alta gama: AVX512 + 16 threads (Ryzen 9, Xeon W, i9-12900K)",
+      "url": "https://github.com/ggerganov/llama.cpp/releases/download/b4208/llama-b4208-bin-ubuntu-x64.zip",
+      "sha256": "PLACEHOLDER_AVX512",
+      "min_ram_gb": 12,
+      "min_cores": 12,
+      "expected_toks_solar_q4": "4.0-4.5",
+      "cmake_flags": "-DLLAMA_AVX512=ON -DLLAMA_AVX2=ON -DLLAMA_FMA=ON -DLLAMA_F16C=ON",
+      "build_required": true,
+      "build_time_min": 45,
+      "openblas_required": false
+    },
+    
+    "avx2-8t": {
+      "description": "Media gama: AVX2 + 8 threads (Ryzen 5, i7-12700K)",
+      "url": "https://github.com/ggerganov/llama.cpp/releases/download/b4208/llama-b4208-bin-ubuntu-x64.zip",
+      "sha256": "PLACEHOLDER_AVX2_8T",
+      "min_ram_gb": 10,
+      "min_cores": 8,
+      "expected_toks_solar_q4": "3.0-3.5",
+      "cmake_flags": "-DLLAMA_AVX2=ON -DLLAMA_FMA=ON -DLLAMA_F16C=ON -DLLAMA_AVX512=OFF",
+      "build_required": true,
+      "build_time_min": 30,
+      "openblas_required": false
+    },
+    
+    "avx2-blas": {
+      "description": "Legacy CPU + OpenBLAS (i5 Skylake, i3-10110U) - CRÍTICO para estabilidad",
+      "url": null,
+      "sha256": null,
+      "min_ram_gb": 8,
+      "min_cores": 2,
+      "expected_toks_solar_q4": "1.2-1.8",
+      "cmake_flags": "-DLLAMA_AVX2=ON -DLLAMA_FMA=ON -DLLAMA_F16C=ON -DLLAMA_AVX512=OFF -DGGML_BLAS=ON -DGGML_BLAS_VENDOR=OpenBLAS",
+      "build_required": true,
+      "build_time_min": 25,
+      "openblas_required": true,
+      "openblas_target": "SKYLAKE",
+      "thread_strategy": "N-1",
+      "notes": [
+        "OpenBLAS es el salvavidas para CPUs antiguas",
+        "Usar N-1 threads para evitar saturación de caché L3",
+        "Priorizar modelos pequeños (Phi-3-mini) para RT <400ms",
+        "Prompt eval esperado: 25-35s (vs 40-50s sin OpenBLAS)"
+      ]
+    },
+    
+    "generic": {
+      "description": "Zero-Compile portable (x86-64-v3, cualquier CPU)",
+      "url": "https://github.com/ggerganov/llama.cpp/releases/download/b4208/llama-b4208-bin-ubuntu-x64.zip",
+      "sha256": "f8c9c4572cb3b90eceac5b4e3c4e063e43b6f14e9f0e4f7a7c4e5d6b8a9c0d1e2",
+      "min_ram_gb": 8,
+      "min_cores": 1,
+      "expected_toks_solar_q4": "0.8-1.0",
+      "cmake_flags": "",
+      "build_required": false,
+      "build_time_min": 5,
+      "openblas_required": false,
+      "notes": [
+        "Fallback seguro para cualquier sistema",
+        "Rendimiento mínimo pero 100% portable",
+        "Usar solo si las otras estrategias fallan"
+      ]
+    }
+  },
+  
+  "cache_dir": "~/.cache/llama-hybrid",
+  "metadata_file": "build_info.json",
+  
+  "validation": {
+    "test_prompt": "Hello, world!",
+    "min_toks_per_sec": 0.5,
+    "max_ram_gb": 12,
+    "timeout_sec": 60
+  }
+}

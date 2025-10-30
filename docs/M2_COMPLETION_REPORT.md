@@ -626,7 +626,7 @@ E2E
 
 ### M3.1: Omni-Sentinel (Audio)
 - [ ] Audio Router con LID (Language ID)
-- [ ] Qwen2.5-Omni-3B integrado
+- [ ] Qwen3-VL-4B-Instruct integrado
 - [ ] NLLB para traducción multi-idioma
 - [ ] HMAC audit para interacciones de voz
 

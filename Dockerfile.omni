@@ -2,7 +2,7 @@
 # Dockerfile.omni - SARAi v2.11 Omni-Sentinel Voice Engine (HARDENED)
 # ============================================================================
 # 
-# Hardened Docker container for Qwen2.5-Omni-3B voice processing pipeline
+# Hardened Docker container for qwen25_7b_audio.onnx voice processing pipeline
 # 
 # Security Features (Kernel-level):
 #   - Multi-stage build (minimal attack surface)

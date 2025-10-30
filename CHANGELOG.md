@@ -143,7 +143,7 @@ SARAi evoluciona de **asistente reactivo** → **agente proactivo auto-mejorable
 | **Latencia P50 (RAG)** | 25-30 s | **25-30 s** | - | Búsqueda web |
 | **Latencia Voz-a-Voz (P50)** | N/D | **<250 ms** | **NEW** | `omni_pipeline` (i7/8GB) |
 | **Latencia Voz (Pi-4)** | N/D | **<400 ms** | **NEW** | Pi-4 con zram |
-| **MOS Natural** | N/D | **4.21** | **NEW** | Qwen2.5-Omni-3B |
+| **MOS Natural** | N/D | **4.21** | **NEW** | Qwen3-VL-4B-Instruct |
 | **MOS Empatía** | N/D | **4.38** | **NEW** | Prosodia dinámica |
 | **STT WER (español)** | N/D | **1.8%** | **NEW** | Transcripción |
 | **RAM P99** | 10.8 GB | **11.2 GB** | +0.4 GB | Omni-3B (~2.1GB) |
@@ -156,11 +156,11 @@ SARAi evoluciona de **asistente reactivo** → **agente proactivo auto-mejorable
 
 ### ✨ Nuevas Características - Los 4 Pilares de "Omni-Sentinel"
 
-#### 🎤 Pilar 1: Motor de Voz "EmoOmnicanal" (Qwen2.5-Omni-3B)
+#### 🎤 Pilar 1: Motor de Voz "EmoOmnicanal" (Qwen3-VL-4B-Instruct)
 
 **Problema resuelto**: Voz cloud (Alexa) viola soberanía. Alternativas offline (Rhasspy) carecen de empatía.
 
-**Solución v2.11**: Pipeline unificado con **Qwen2.5-Omni-3B-q4** (ONNX, 190MB).
+**Solución v2.11**: Pipeline unificado con **Qwen3-VL-4B-Instruct-q4** (ONNX, 190MB).
 
 **Componentes**:
 - **Archivo**: `agents/omni_pipeline.py` (430 líneas)
@@ -683,7 +683,7 @@ docker buildx build --platform linux/amd64,linux/arm64 \
 ```yaml
 audio_engine:
   engine: "omni3b"
-  model_path: "models/qwen2.5-omni-3B-es-q4.onnx"
+  model_path: "models/Qwen3-VL-4B-Instruct-es-q4.onnx"
   target_latency_ms: 250
   
 skills_infra:
@@ -736,12 +736,12 @@ security:
 ```bash
 # Desde HuggingFace (repo hipotético)
 huggingface-cli download \
-  qwen/qwen2.5-omni-3B-es-q4-onnx \
+  qwen/Qwen3-VL-4B-Instruct-es-q4-onnx \
   --local-dir models/ \
   --include "*.onnx"
 
 # Verificar
-ls -lh models/qwen2.5-omni-3B-es-q4.onnx
+ls -lh models/Qwen3-VL-4B-Instruct-es-q4.onnx
 # Esperado: ~190 MB
 ```
 

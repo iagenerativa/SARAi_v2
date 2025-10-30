@@ -3,7 +3,7 @@
 agents/omni_pipeline.py - Motor de Voz "Omni-Sentinel" v2.11
 
 Pipeline unificado de ultra-baja latencia para voz natural y empática:
-    VAD → Pipecat → Qwen2.5-Omni-3B-q4 (STT + Emoción + TTS)
+    VAD → Pipecat → Qwen3-VL-4B-Instruct-q4 (STT + Emoción + TTS)
 
 Características:
 - Latencia P50: <250ms (i7/8GB), <400ms (Pi-4 con zram)
@@ -73,7 +73,7 @@ from core.web_audit import get_web_audit_logger
 
 OMNI_MODEL_PATH = os.getenv(
     "OMNI_MODEL_PATH",
-    "models/qwen2.5-omni-3B-es-q4.onnx"
+    "models/Qwen3-VL-4B-Instruct-es-q4.onnx"
 )
 
 AUDIO_LOGS_DIR = Path("logs/audio")
@@ -134,7 +134,7 @@ SENTINEL_AUDIO_RESPONSES = {
 
 class OmniSentinelEngine:
     """
-    Motor de voz unificado basado en Qwen2.5-Omni-3B-q4
+    Motor de voz unificado basado en Qwen3-VL-4B-Instruct-q4
     
     Pipeline:
     1. VAD (Voice Activity Detection) - externo (Pipecat)

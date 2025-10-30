@@ -4,7 +4,7 @@
 
 **SARAi v2.11** completes the architectural evolution from v2.0 to the definitive production-ready system, adding:
 
-1. **Empathic Voice Engine**: Qwen2.5-Omni-3B-q4 (ONNX, <250ms latency, MOS 4.38)
+1. **Empathic Voice Engine**: Qwen3-VL-4B-Instruct-q4 (ONNX, <250ms latency, MOS 4.38)
 2. **Infrastructure Skills**: Home Assistant + Network Diagnostics (HMAC audited, firejail sandboxed)
 3. **Military-Grade Security**: HMAC per-line logging, chattr +a immutability, read-only containers
 
@@ -196,7 +196,7 @@ curl http://localhost:8001/health
 # Audio Engine (Omni-3B)
 audio_engine:
   engine: "omni3b"  # or "disabled"
-  model_path: "models/qwen2.5-omni-3B-es-q4.onnx"
+  model_path: "models/Qwen3-VL-4B-Instruct-es-q4.onnx"
   target_latency_ms: 250
   port: 8001
   logs_dir: "logs/audio"
@@ -253,7 +253,7 @@ security:
 ```bash
 # Audio Engine
 AUDIO_ENGINE=omni3b
-OMNI_MODEL_PATH=models/qwen2.5-omni-3B-es-q4.onnx
+OMNI_MODEL_PATH=models/Qwen3-VL-4B-Instruct-es-q4.onnx
 OMNI_PORT=8001
 
 # Home Assistant
@@ -445,12 +445,12 @@ docker-compose up -d && docker logs --tail=20 sarai-omni-engine
 ```bash
 # Download Omni-3B ONNX model (hypothetical repo)
 huggingface-cli download \
-  qwen/qwen2.5-omni-3B-es-q4-onnx \
+  qwen/Qwen3-VL-4B-Instruct-es-q4-onnx \
   --local-dir models/ \
   --include "*.onnx"
 
 # Verify
-ls -lh models/qwen2.5-omni-3B-es-q4.onnx
+ls -lh models/Qwen3-VL-4B-Instruct-es-q4.onnx
 # Expected: ~190 MB
 ```
 

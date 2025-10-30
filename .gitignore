@@ -51,3 +51,24 @@ config/local.yaml
 # Checkpoints temporales
 checkpoints/
 *.ckpt
+
+# Archivos ONNX grandes (descargar manualmente)
+models/onnx/*.onnx
+models/onnx/*.data
+models/onnx/**/*.onnx
+models/onnx/**/*.data
+models/kitten_repo/
+
+# Models grandes (descargar localmente)
+models/vosk/
+models/audio_emotion_lite.joblib
+models/kitten_repo/
+
+# Cache y archivos de test
+state/image_cache_test/
+state/audio_test/
+
+# Archivos ONNX grandes
+models/onnx/*.onnx
+models/onnx/*.onnx.data
+models/onnx/old/

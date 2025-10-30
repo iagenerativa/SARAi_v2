@@ -1,0 +1,24 @@
+# skills/qwen3_vl/requirements.txt
+# Dependencias para Qwen2-VL-7B-Instruct gRPC service
+
+# Core
+grpcio==1.60.0
+grpcio-tools==1.60.0
+protobuf==4.25.1
+
+# Transformers & Vision
+transformers==4.46.0
+torch==2.5.1
+torchvision==0.20.1
+pillow==10.1.0
+qwen-vl-utils==0.0.8
+
+# Utilities
+numpy==1.24.3
+psutil==5.9.8
+pyyaml==6.0.3
+huggingface-hub==0.20.1
+
+# Image processing
+opencv-python-headless==4.8.1.78
+imagehash==4.3.1

@@ -1,7 +1,7 @@
 """
 tests/test_omni_pipeline.py - Tests para Omni Pipeline v2.11
 
-Valida el comportamiento del motor de voz Qwen2.5-Omni-3B:
+Valida el comportamiento del motor de voz Qwen3-VL-4B-Instruct:
 - Carga del modelo ONNX
 - STT + detección emocional
 - TTS empático

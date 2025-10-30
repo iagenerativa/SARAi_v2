@@ -49,7 +49,7 @@ SARAi combina razonamiento técnico profundo con inteligencia emocional y **voz 
 4. **🛠️ DX**: `make prod` automatizado con validación de KPIs
 5. **🔐 Confianza**: Release firmado (Cosign) + SBOM verificable
 6. **� Auditoría Inmutable**: Logs SHA-256 sidecar (web + voz + sistema)
-7. **�️ Voz Natural**: Qwen2.5-Omni-3B (español/inglés nativo) + NLLB (6 idiomas) + HMAC audit
+7. **�️ Voz Natural**: Qwen3-VL-4B-Instruct (español/inglés nativo) + NLLB (6 idiomas) + HMAC audit
 
 ## 🏗️ Arquitectura v2.4
 
@@ -748,6 +748,71 @@ Los 6 pilares Ultra-Edge están **especificados** en la arquitectura pero pendie
 - [ ] **Load testing**: Validar batching con múltiples usuarios
 - [ ] **Chaos engineering**: Validar MoE fallback
 - [ ] **Audit testing**: Validar inmutabilidad de logs
+
+---
+
+## 🚀 Cuantización INT8 - Audio ONNX (v2.16.1)
+
+**Fecha**: 29 Octubre 2025  
+**Status**: ✅ Listo para ejecutar en Windows  
+
+### Beneficios
+
+| Métrica | FP32 (Actual) | INT8 (Esperado) | Mejora |
+|---------|---------------|-----------------|--------|
+| **Tamaño modelo** | 4.3 GB | **1.1 GB** | **-74%** ✅ |
+| **Latencia P50** | 5.3 s | **~2.0 s** | **-62%** ✅ |
+| **RAM usage** | 4.3 GB | **1.2 GB** | **-72%** ✅ |
+| **Tiempo carga** | 44 s | **<10 s** | **-77%** ✅ |
+| **Precisión** | 100% | **98-99%** | -1-2% |
+
+**Impacto en arquitectura**:
+- Baseline RAM total: **5.4GB → 2.3GB** (-57%)
+- Libera **3.1GB** para otros modelos
+- Permite SARAi en sistemas con **8GB RAM**
+
+### Scripts Listos
+
+**Windows** (Ejecutar primero):
+1. `scripts/check_prerequisites_windows.bat` - Verificar pre-requisitos
+2. `scripts/quantize_windows.bat` ⭐ **SCRIPT PRINCIPAL** (2-10 min)
+3. `scripts/quantize_onnx_int8_windows.py` - Alternativa Python manual
+
+**Linux** (Después de transferir):
+4. `scripts/test_onnx_pipeline.py` - Suite de 5 tests automáticos
+5. `scripts/compare_fp32_int8_quality.py` - Comparación FP32 vs INT8
+
+### Documentación Completa
+
+- **`QUANTIZATION_INT8_READY.txt`** - Resumen ejecutivo en texto plano
+- **`docs/EXECUTIVE_SUMMARY_INT8.md`** ⭐ EMPEZAR AQUÍ
+- **`docs/QUANTIZATION_CHECKLIST.md`** - Checklist interactivo
+- **`docs/WINDOWS_QUANTIZATION_WORKFLOW.md`** - Guía completa
+- **`docs/INT8_FILES_INDEX.md`** - Índice de todos los archivos
+- **`scripts/README_QUANTIZATION.md`** - Guía de scripts
+
+### Workflow Rápido
+
+```batch
+REM 1. WINDOWS (2-10 min)
+cd C:\SARAi_v2
+scripts\quantize_windows.bat
+
+REM 2. TRANSFERIR (5-10 min)
+scp models\onnx\agi_audio_core_int8.* noel@agi1:~/SARAi_v2/models/onnx/
+
+REM 3. LINUX CONFIG (2 min)
+nano config/sarai.yaml
+# model_path: "models/onnx/agi_audio_core_int8.onnx"
+# max_memory_mb: 1200
+
+REM 4. VALIDAR (3 min)
+python3 scripts/test_onnx_pipeline.py
+python3 scripts/compare_fp32_int8_quality.py
+```
+
+**Tiempo total**: 30-40 minutos  
+**Riesgo**: Bajo (rollback a FP32 en 1 minuto)
 
 ---
 

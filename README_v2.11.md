@@ -107,7 +107,7 @@ cp .env.example .env
 nano .env  # Set AUDIO_ENGINE=omni3b, tokens, etc.
 
 # Download Omni-3B ONNX model (hypothetical)
-# huggingface-cli download qwen/qwen2.5-omni-3B-es-q4-onnx \
+# huggingface-cli download qwen/Qwen3-VL-4B-Instruct-es-q4-onnx \
 #   --local-dir models/ --include "*.onnx"
 
 # Build Docker images
@@ -173,7 +173,7 @@ python -m skills.home_ops \
         ┌─────────────────────┼─────────────────────┐
         |                     |                     |
    VOICE ENGINE          TEXT ENGINE           WEB ENGINE
-   (Omni-3B)             (SOLAR+LFM2)          (RAG)
+   (Omni-7B)             (SOLAR+LFM2)          (RAG)
         |                     |                     |
    ┌────┴────┐           ┌────┴────┐           ┌────┴────┐
    | STT     |           | Hard    |           | SearXNG |
@@ -284,7 +284,7 @@ Si deseas usar SARAi con fines comerciales (hosting, SaaS, consultoría, etc.), 
 
 **Proyecto**: SARAi v2.11 "Omni-Sentinel"  
 **Autor**: Noel  
-**Asistencia**: GitHub Copilot  
+**Asistencia**: SARAi  
 **Licencia**: CC BY-NC-SA 4.0  
 
 **Contribuciones bienvenidas**:

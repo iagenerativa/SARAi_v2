@@ -5,7 +5,7 @@
 **SARAi v2.11 "Omni-Sentinel"** completa el círculo iniciado en v2.0, fusionando:
 
 1. **v2.10 "Sentinel + Web"**: RAG autónomo con auditoría completa
-2. **Motor de Voz "EmoOmnicanal"**: Qwen2.5-Omni-3B (latencia <250ms, MOS 4.38)
+2. **Motor de Voz "EmoOmnicanal"**: Qwen3-VL-4B-Instruct (latencia <250ms, MOS 4.38)
 3. **Infraestructura Blindada**: Contenedores read-only, HMAC, chattr +a, firejail
 
 **Resultado**: El asistente local definitivo para el hogar inteligente - seguro, empático y soberano.
@@ -21,7 +21,7 @@
 | **Latencia P50 (RAG)** | 25-30 s | **25-30 s** | - | Búsqueda + síntesis |
 | **Latencia Voz-a-Voz (P50)** | N/D | **<250 ms** | **NEW** | **Omni-3B (i7/8GB)** |
 | **Latencia Voz (Pi-4)** | N/D | **<400 ms** | **NEW** | Pi-4 con zram |
-| **MOS Natural** | N/D | **4.21** | **NEW** | Qwen2.5-Omni-3B |
+| **MOS Natural** | N/D | **4.21** | **NEW** | Qwen3-VL-4B-Instruct |
 | **MOS Empatía** | N/D | **4.38** | **NEW** | **Prosodia dinámica** |
 | **STT WER (español)** | N/D | **1.8%** | **NEW** | Transcripción |
 | **RAM P99** | 10.8 GB | **11.2 GB** | +0.4 GB | Omni-3B (~2.1GB) |
@@ -65,7 +65,7 @@
 
 ### Pilar 7: Voz Empática v2.11 (Omni-Sentinel)
 
-7.1. **🎤 Motor de Voz Unificado** (Qwen2.5-Omni-3B-q4)
+7.1. **🎤 Motor de Voz Unificado** (Qwen3-VL-4B-Instruct-q4)
 7.2. **😊 Detección Emocional** (15-D emotion vector)
 7.3. **🎭 TTS Empático** (Prosodia dinámica: pitch, pausas, ritmo)
 7.4. **🔒 Auditoría HMAC** (Logs firmados por línea)
@@ -471,7 +471,7 @@ Vuelve a producción
 | **Web Cache** | v2.10 RAG | diskcache + SearXNG | Hit rate 40-60% |
 | **Web Audit** | v2.10 RAG | SHA-256 por búsqueda | Trazabilidad 100% |
 | **Síntesis** | v2.10 RAG | SOLAR context-aware | Respuestas verificables |
-| **Voz Empática** | v2.11 Omni | Qwen2.5-Omni-3B (HMAC) | MOS 4.38, <250ms |
+| **Voz Empática** | v2.11 Omni | Qwen3-VL-4B-Instruct (HMAC) | MOS 4.38, <250ms |
 | **Skills Infra** | v2.11 Omni | Home Ops + Net Diag (firejail) | Auditoría 100% |
 | **Read-Only** | v2.11 Omni | Docker + chattr +a | Inmutabilidad total |
 

@@ -61,7 +61,7 @@ VOICE PROCESSING LAYER (process_voice) - SOLO SI AUDIO
       ┌─────────────────────────────────────────────┐
       │ Omni Pipeline (agents/omni_pipeline.py)    │
       │ ┌─────────────────────────────────────┐   │
-      │ │ Qwen2.5-Omni-3B ONNX (Q4)           │   │
+      │ │ Qwen3-VL-4B-Instruct ONNX (Q4)           │   │
       │ │                                      │   │
       │ │ INPUT: audio_bytes                  │   │
       │ │                                      │   │
@@ -225,7 +225,7 @@ TTS LAYER - NUEVO v2.11 (SOLO SI AUDIO INPUT)
           ┌──────────────────────────────────┐
           │ generate_tts                     │
           │ ┌──────────────────────────────┐ │
-          │ │ Qwen2.5-Omni-3B (TTS mode)   │ │
+          │ │ Qwen3-VL-4B-Instruct (TTS mode)   │ │
           │ │                              │ │
           │ │ INPUT:                       │ │
           │ │  - text: response modulada   │ │
@@ -489,7 +489,7 @@ omni_session = ort.InferenceSession("omni-unified.onnx")  # 2.1GB
 
 ```python
 # Ya funciona en M3.1
-model_pool.get("omni3b")   # Carga Qwen2.5-Omni-3B
+model_pool.get("omni3b")   # Carga Qwen3-VL-4B-Instruct
 model_pool.get("nllb")     # Carga NLLB-200
 ```
 
@@ -524,5 +524,5 @@ def detect_voice_feedback(previous_response_emotion, next_input_emotion):
 
 **Documento creado**: 28 octubre 2025  
 **Versión**: 1.0  
-**Autor**: GitHub Copilot + Noel  
+**Autor**: SARAi + Noel  
 **Estado**: Planificación (M3.2 pendiente de implementación)

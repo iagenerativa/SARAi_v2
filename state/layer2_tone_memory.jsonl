@@ -1,0 +1,30 @@
+{"timestamp": 1761852118.2215445, "text": "hola cómo te encuentras", "label": "ira", "confidence": 0.246875, "valence": 1.0, "arousal": 1.0}
+{"timestamp": 1761852123.0010004, "text": "has escuchado", "label": "ira", "confidence": 0.321875, "valence": 1.0, "arousal": 1.0}
+{"timestamp": 1761854023.4605496, "text": "hola qué tres", "label": "ira", "confidence": 0.321875, "valence": 1.0, "arousal": 1.0}
+{"timestamp": 1761854033.1100745, "text": "por qué ser así", "label": "ira", "confidence": 0.396875, "valence": 1.0, "arousal": 1.0}
+{"timestamp": 1761854041.216818, "text": "me pueden ser", "label": "miedo", "confidence": 0.171875, "valence": 1.0, "arousal": 1.0}
+{"timestamp": 1761854060.3318455, "text": "necesito que hables en español por", "label": "ira", "confidence": 0.390625, "valence": 1.0, "arousal": 1.0}
+{"timestamp": 1761854066.6690874, "text": "hay", "label": "alegría", "confidence": 0.209375, "valence": 1.0, "arousal": 1.0}
+{"timestamp": 1761856979.575307, "text": "ahora será", "label": "ira", "confidence": 0.209375, "valence": 1.0, "arousal": 1.0}
+{"timestamp": 1761856998.2886114, "text": "estas", "label": "emoción_pos", "confidence": 0.171875, "valence": 1.0, "arousal": 1.0}
+{"timestamp": 1761857001.7748973, "text": "puedes", "label": "alegría", "confidence": 0.190625, "valence": 1.0, "arousal": 1.0}
+{"timestamp": 1761857006.7210696, "text": "puedes", "label": "alegría", "confidence": 0.184375, "valence": 1.0, "arousal": 1.0}
+{"timestamp": 1761857013.0045207, "text": "es", "label": "ira", "confidence": 0.171875, "valence": 0.9452642595832718, "arousal": 1.0}
+{"timestamp": 1761857015.7428284, "text": "desayuno", "label": "alegría", "confidence": 0.140625, "valence": 1.0, "arousal": 1.0}
+{"timestamp": 1761857020.1563685, "text": "vamos vamos a ver que yo lo que quiero es", "label": "ira", "confidence": 0.14375, "valence": 1.0, "arousal": 1.0}
+{"timestamp": 1761857023.884401, "text": "no", "label": "ira", "confidence": 0.24375, "valence": 1.0, "arousal": 1.0}
+{"timestamp": 1761857025.7874613, "text": "para", "label": "ira", "confidence": 0.190625, "valence": 1.0, "arousal": 1.0}
+{"timestamp": 1761857031.0903804, "text": "puedes darme más detalles", "label": "ira", "confidence": 0.340625, "valence": 1.0, "arousal": 1.0}
+{"timestamp": 1761857038.7734575, "text": "puedes darme", "label": "alegría", "confidence": 0.16875, "valence": 1.0, "arousal": 1.0}
+{"timestamp": 1761857042.1560886, "text": "puedes", "label": "alegría", "confidence": 0.203125, "valence": 1.0, "arousal": 1.0}
+{"timestamp": 1761857046.2293448, "text": "puedes al menos", "label": "alegría", "confidence": 0.2125, "valence": 1.0, "arousal": 1.0}
+{"timestamp": 1761857048.3933387, "text": "puedo", "label": "ira", "confidence": 0.20625, "valence": 1.0, "arousal": 1.0}
+{"timestamp": 1761859000.32847, "text": "la", "label": "ira", "confidence": 0.284375, "valence": 1.0, "arousal": 1.0}
+{"timestamp": 1761859007.8375924, "text": "las", "label": "ira", "confidence": 0.3, "valence": 1.0, "arousal": 1.0}
+{"timestamp": 1761859024.652967, "text": "estoy intentando", "label": "ira", "confidence": 0.259375, "valence": 1.0, "arousal": 1.0}
+{"timestamp": 1761859032.7641118, "text": "como", "label": "ira", "confidence": 0.284375, "valence": 1.0, "arousal": 1.0}
+{"timestamp": 1761859040.705868, "text": "estoy intentando saber cómo funcionan", "label": "alegría", "confidence": 0.18125, "valence": 1.0, "arousal": 1.0}
+{"timestamp": 1761859042.1570199, "text": "estoy intentando", "label": "ira", "confidence": 0.290625, "valence": 1.0, "arousal": 1.0}
+{"timestamp": 1761859219.3370473, "text": "ayuda", "label": "ira", "confidence": 0.446875, "valence": 1.0, "arousal": 1.0}
+{"timestamp": 1761859230.488456, "text": "cit", "label": "ira", "confidence": 0.2125, "valence": 1.0, "arousal": 1.0}
+{"timestamp": 1761859234.5864756, "text": "luz fitness", "label": "ira", "confidence": 0.215625, "valence": 1.0, "arousal": 1.0}

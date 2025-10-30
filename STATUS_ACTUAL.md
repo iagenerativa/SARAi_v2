@@ -274,7 +274,7 @@ docker pull ghcr.io/iagenerativa/sarai_v2:v2.6.0-rc1
 **Mientras esperas el workflow**:
 - ✅ Revisar el M3.1 Completion Report recién creado
 - ✅ Planificar M3.2 Voice Integration (ver ROADMAP_v2.11.md)
-- ✅ Explorar documentación de Qwen2.5-Omni-3B
+- ✅ Explorar documentación de Qwen3-VL-4B-Instruct
 - ✅ Diseñar dashboard de métricas de voz
 
 **NO hacer mientras el workflow corre**:

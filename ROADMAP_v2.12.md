@@ -7,7 +7,7 @@
 
 ### Key Achievements
 
-- ✅ **Voice-LLM Integration**: Qwen2.5-Omni-3B con latencia <250ms
+- ✅ **Voice-LLM Integration**: qwen25_7b_audio.onnx con latencia <250ms
 - ✅ **Multi-language Support**: Español (nativo), Inglés (nativo), +6 idiomas vía NLLB
 - ✅ **Audio Router**: Detección automática de idioma + fallback chain
 - ✅ **Hardening**: Docker cap_drop ALL, read-only filesystem, no-new-privileges

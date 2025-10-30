@@ -9,16 +9,53 @@ PYTEST := $(shell pwd)/.venv/bin/pytest
 PIP := $(shell pwd)/.venv/bin/pip
 UVICORN := $(shell pwd)/.venv/bin/uvicorn
 
-.PHONY: help install prod bench health clean distclean docker-build docker-buildx docker-run chaos tune audit-log
+.PHONY: help install install-legacy prod bench health clean distclean docker-build docker-buildx docker-run chaos tune audit-log test-production test-production-quick install-llama show-llama-strategy
 
 help:       ## Muestra este mensaje de ayuda
-	@echo "SARAi v2.8 - Makefile de Producción + Online Tuning"
+	@echo "SARAi v2.16 - Makefile de Producción (Hybrid llama.cpp)"
 	@echo ""
 	@echo "Targets disponibles:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
+	@echo ""
+	@echo "🆕 NUEVO: Sistema Híbrido llama.cpp"
+	@echo "  • Detecta tu CPU automáticamente"
+	@echo "  • Elige la mejor estrategia (AVX512 | AVX2 | AVX2-BLAS | generic)"
+	@echo "  • Nunca falla (siempre fallback a generic)"
+	@echo "  • Un solo comando: make install"
 
-install:    ## 1) Setup completo: venv + deps + GGUFs + TRM-Mini (~20 min)
-	@echo "🔧 Instalando SARAi v2.4 (CPU-GGUF)..."
+install:    ## 1) Setup completo: venv + deps + llama.cpp HÍBRIDO + GGUFs (~20-30 min)
+	@echo "🔧 Instalando SARAi v2.16 (Hybrid llama.cpp)..."
+	@echo ""
+	@if [ ! -d ".venv" ]; then \
+		echo "Creando virtualenv..."; \
+		python3 -m venv .venv; \
+	fi
+	@echo "Instalando dependencias Python..."
+	$(PIP) install --upgrade pip
+	$(PIP) install -e .
+	@echo ""
+	@echo "🚀 Instalando llama.cpp con sistema híbrido..."
+	@echo "   (Detecta CPU → elige estrategia → descarga/compila → nunca falla)"
+	@chmod +x scripts/install_llama_hybrid.sh
+	@bash scripts/install_llama_hybrid.sh
+	@echo ""
+	@echo "Descargando modelos GGUF..."
+	$(PYTHON) scripts/download_gguf_models.py
+	@echo ""
+	@echo "Entrenando TRM-Mini por distilación (si hay datos)..."
+	@if [ -f "logs/feedback_log.jsonl" ] && [ $$(wc -l < logs/feedback_log.jsonl) -ge 500 ]; then \
+		$(PYTHON) scripts/train_trm_mini.py --epochs 50; \
+	else \
+		echo "⚠️ Skipping TRM-Mini training (insuficientes datos en logs)"; \
+	fi
+	@echo ""
+	@echo "✅ Instalación completa."
+	@echo ""
+	@echo "📊 Estrategia detectada:"
+	@$(MAKE) show-llama-strategy
+
+install-legacy:    ## Instalación legacy (sin llama.cpp híbrido, solo Python deps)
+	@echo "🔧 Instalando SARAi v2.16 (modo legacy, sin llama.cpp)..."
 	@if [ ! -d ".venv" ]; then \
 		echo "Creando virtualenv..."; \
 		python3 -m venv .venv; \
@@ -26,15 +63,7 @@ install:    ## 1) Setup completo: venv + deps + GGUFs + TRM-Mini (~20 min)
 	@echo "Instalando dependencias..."
 	$(PIP) install --upgrade pip
 	$(PIP) install -e .
-	@echo "Descargando archivos GGUF..."
-	$(PYTHON) scripts/download_gguf_models.py
-	@echo "Entrenando TRM-Mini por distilación (esto puede tardar)..."
-	@if [ -f "logs/feedback_log.jsonl" ] && [ $$(wc -l < logs/feedback_log.jsonl) -ge 500 ]; then \
-		$(PYTHON) scripts/train_trm_mini.py --epochs 50; \
-	else \
-		echo "⚠️ Skipping TRM-Mini training (insuficientes datos en logs)"; \
-	fi
-	@echo "✅ Instalación completa."
+	@echo "✅ Instalación legacy completa."
 
 bench:      ## 2) Ejecuta SARAi-Bench (validación de KPIs)
 	@echo "🧪 Ejecutando SARAi-Bench..."
@@ -236,6 +265,33 @@ audit-log:  ## 📋 NEW v2.8: Verifica integridad de logs con SHA-256
 		echo "  → Auditoría forense requerida"; \
 		exit 1; \
 	fi
+
+test-production: ## 🧪 Test de estabilidad con modelos reales (Ollama SOLAR+Qwen)
+	@echo "🧪 Ejecutando test de estabilidad producción..."
+	@echo "📋 Requisitos: Ollama instalado + SOLAR-10.7B + Qwen2.5:0.5b+3b"
+	@echo ""
+	@if ! command -v ollama &> /dev/null; then \
+		echo "❌ Ollama no encontrado. Instalar: curl -fsSL https://ollama.com/install.sh | sh"; \
+		exit 1; \
+	fi
+	@echo "✅ Ollama disponible"
+	@echo ""
+	@echo "🚀 Iniciando test (esto puede tardar 5-10 min)..."
+	@echo "   - SOLAR-10.7B Expert Inference"
+	@echo "   - Draft LLM (Qwen2.5:0.5b)"
+	@echo "   - TRM Router Classification"
+	@echo "   - MCP Weight Calculation"
+	@echo "   - Omni-Loop Simulation (3 iterations)"
+	@echo "   - Stress Test (10 concurrent)"
+	@echo "   - RAM Stability (60s continuous)"
+	@echo ""
+	$(PYTHON) scripts/test_production_stability.py --duration 300
+	@echo ""
+	@echo "✅ Test completado. Ver reporte en logs/stability_test_*.json"
+
+test-production-quick: ## ⚡ Test rápido (solo SOLAR + Draft, 2 min)
+	@echo "⚡ Test rápido de producción..."
+	$(PYTHON) scripts/test_production_stability.py --duration 60 --skip-setup
 
 validate-hardening:  ## 🛡️ NEW v2.11: Valida seguridad kernel-level del contenedor Omni
 	@echo "🛡️ Validando hardening de contenedor Omni..."
@@ -614,6 +670,184 @@ verify-build: ## 🔐 [v2.12] Verifica attestation de build
 	else \
 		echo "⚠️ cosign no instalado, skip verification"; \
 		echo "Instalar: curl -sSfL https://raw.githubusercontent.com/sigstore/cosign/main/install.sh | sh"; \
+	fi
+
+# ============================================================================
+# v2.16: llama.cpp Native Build (Optimización Local)
+# ============================================================================
+
+install-fast: install ## [v2.16] Alias para install (Zero-Compile, producción)
+	@echo "✅ Setup rápido completado (binarios pre-compilados)"
+
+install-optimized: ## [v2.16] Build nativo optimizado para CPU específica (+40-50% velocidad con OpenBLAS, NO portable)
+	@echo "⚡ ADVERTENCIA: Build nativo con OpenBLAS NO portable a otras CPUs"
+	@echo "   Usa 'make install' para setup rápido de producción"
+	@echo ""
+	@echo "📊 Mejoras esperadas vs Zero-Compile:"
+	@echo "   • Velocidad: +40-50% tokens/s (OpenBLAS + native)"
+	@echo "   • RAM: -14% (mejor cache usage)"
+	@echo "   • Prompt eval: -40% latencia (512 tokens: 8-12s vs 15-20s)"
+	@echo "   • Tiempo de build: ~40-50 min (incluye OpenBLAS)"
+	@echo ""
+	@read -p "¿Continuar con build optimizado? [y/N] " -n 1 -r; \
+	echo; \
+	if [[ $$REPLY =~ ^[Yy]$$ ]]; then \
+		./scripts/build_llama_native.sh; \
+		echo ""; \
+		echo "🔄 Reconstruyendo llama-cpp-python con binarios nativos..."; \
+		export LLAMA_CPP_LIB=$$(pwd)/.local/lib/libllama.so; \
+		$(PIP) install llama-cpp-python --force-reinstall --no-cache-dir; \
+		echo "✅ Build nativo + OpenBLAS completado"; \
+		echo ""; \
+		echo "📊 Para benchmark comparativo:"; \
+		echo "   make bench-llama-native"; \
+		echo ""; \
+		echo "📝 Ver configuración:"; \
+		echo "   make show-llama-build"; \
+	else \
+		echo "❌ Cancelado"; \
+	fi
+
+bench-llama-native: ## [v2.16] Benchmark: Binarios genéricos vs nativos optimizados (incluye llama-bench)
+	@echo "📊 Benchmark: Zero-Compile vs Native Optimized + OpenBLAS"
+	@echo "══════════════════════════════════════════════════════════"
+	@echo ""
+	@if [ ! -f ".local/lib/build_info.json" ]; then \
+		echo "❌ Error: Build nativo no encontrado"; \
+		echo "   Ejecuta: make install-optimized"; \
+		exit 1; \
+	fi
+	@echo "CPU: $$(grep 'model name' /proc/cpuinfo | head -1 | cut -d: -f2 | xargs)"
+	@echo "Build: $$(cat .local/lib/build_info.json | jq -r .build_type)"
+	@echo "Build date: $$(cat .local/lib/build_info.json | jq -r .date)"
+	@echo "OpenBLAS: $$(cat .local/lib/build_info.json | jq -r .blas_enabled)"
+	@echo "Threads óptimos: $$(cat .local/lib/build_info.json | jq -r .optimal_threads)"
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════"
+	@echo "🔬 Test 1: llama-bench (Prompt Processing + Token Generation)"
+	@echo "════════════════════════════════════════════════════════════"
+	@if [ -f ".local/bin/llama-bench" ]; then \
+		OPTIMAL_THREADS=$$(cat .local/lib/build_info.json | jq -r .optimal_threads); \
+		echo "Ejecutando llama-bench con $$OPTIMAL_THREADS threads..."; \
+		echo ""; \
+		.local/bin/llama-bench \
+			-m models/solar/solar-10.7b-instruct-v1.0.Q4_K_M.gguf \
+			-p 512 \
+			-n 128 \
+			-t $$OPTIMAL_THREADS \
+			-ngl 0 \
+			-r 3 2>/dev/null || echo "⚠️ llama-bench no disponible o modelo no encontrado"; \
+	else \
+		echo "⚠️ llama-bench no encontrado (requiere build nativo)"; \
+	fi
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════"
+	@echo "🔬 Test 2: SOLAR-10.7B (prompt corto, 64 tokens)"
+	@echo "════════════════════════════════════════════════════════════"
+	@$(PYTHON) -c "from agents.solar_native import SolarNative; import time; s=SolarNative(context_mode='short'); t0=time.time(); s.generate('Hi, my name is ', max_tokens=64); elapsed=time.time()-t0; print(f'Tiempo: {elapsed:.2f}s | Tok/s: {64/elapsed:.2f}')"
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════"
+	@echo "🔬 Test 3: SOLAR-10.7B (query técnica, 200 tokens)"
+	@echo "════════════════════════════════════════════════════════════"
+	@$(PYTHON) -c "from agents.solar_native import SolarNative; import time; s=SolarNative(context_mode='short'); t0=time.time(); s.generate('Explain backpropagation in deep learning', max_tokens=200); elapsed=time.time()-t0; print(f'Tiempo: {elapsed:.2f}s | Tok/s: {200/elapsed:.2f}')"
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════"
+	@echo "📊 Comparar con resultados esperados"
+	@echo "════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "Zero-Compile (sin OpenBLAS):"
+	@echo "  • Velocidad: 2.8-3.2 tok/s"
+	@echo "  • Prompt eval (512 tok): 15-20s"
+	@echo "  • RAM: ~11.8 GB"
+	@echo ""
+	@echo "Native + OpenBLAS (esperado):"
+	@echo "  • Velocidad: 4.0-4.5 tok/s (+40-50%)"
+	@echo "  • Prompt eval (512 tok): 8-12s (-40%)"
+	@echo "  • RAM: ~10.2 GB (-14%)"
+	@echo ""
+
+clean-llama-build: ## [v2.16] Limpia build de llama.cpp nativo
+	@echo "🧹 Limpiando build nativo de llama.cpp..."
+	rm -rf build/llama.cpp
+	rm -rf .local/lib/libllama.*
+	rm -rf .local/bin/llama-*
+	rm -f .local/lib/build_info.json
+	rm -rf ~/.cache/llama-hybrid/*
+	@echo "✅ Build nativo limpiado"
+	@echo "Para reinstalar:"
+	@echo "  make install"
+
+show-llama-strategy: ## [v2.16 NUEVO] Muestra estrategia detectada y metadata del build
+	@echo "📦 Estrategia llama.cpp Híbrida"
+	@echo "════════════════════════════════════════════════════════════"
+	@if [ -f ".local/build_info.json" ]; then \
+		cat .local/build_info.json | jq .; \
+		echo ""; \
+		STRATEGY=$$(cat .local/build_info.json | jq -r .build_type); \
+		echo "🎯 Estrategia activa: $$STRATEGY"; \
+		echo ""; \
+		case "$$STRATEGY" in \
+			"avx512-16t") \
+				echo "🏎️  Alta gama (AVX512 + 16 threads)"; \
+				echo "   Ganancia esperada: +60% tok/s"; \
+				echo "   Hardware: Ryzen 9, Xeon W, i9-12900K"; \
+				;; \
+			"avx2-8t") \
+				echo "🚗 Media gama (AVX2 + 8 threads)"; \
+				echo "   Ganancia esperada: +40% tok/s"; \
+				echo "   Hardware: Ryzen 5, i7-12700K"; \
+				;; \
+			"avx2-blas") \
+				echo "🚙 CPU Legacy + OpenBLAS (CRÍTICO)"; \
+				echo "   Ganancia esperada: +30-50% tok/s"; \
+				echo "   Hardware: i5 Skylake, i3-10110U"; \
+				echo "   ⚠️  OpenBLAS es el salvavidas para CPUs antiguas"; \
+				;; \
+			"generic") \
+				echo "🚶 Zero-Compile portable"; \
+				echo "   Rendimiento base (sin optimizaciones)"; \
+				echo "   Compatible con cualquier x86-64"; \
+				;; \
+		esac; \
+		echo ""; \
+		echo "Binario: $$(cat .local/build_info.json | jq -r .binary_path)"; \
+		echo "Threads óptimos: $$(cat .local/build_info.json | jq -r .optimal_threads)"; \
+	else \
+		echo "❌ No se encontró build_info.json"; \
+		echo "   Ejecuta 'make install' primero"; \
+	fi
+
+install-llama: ## [v2.16 NUEVO] Re-instala solo llama.cpp (sin tocar Python deps)
+	@echo "🔄 Re-instalando solo llama.cpp..."
+	@chmod +x scripts/install_llama_hybrid.sh
+	@bash scripts/install_llama_hybrid.sh
+	@echo "✅ llama.cpp reinstalado"
+	@$(MAKE) show-llama-strategy
+
+show-llama-build: ## [v2.16 LEGACY] Alias para show-llama-strategy
+	@$(MAKE) show-llama-strategy
+		fi; \
+	else \
+		echo "Build Type: ZERO-COMPILE (Pre-compiled binaries)"; \
+		echo "Source: ghcr.io/iagenerativa/sarai_v2"; \
+		echo "Portable: ✅ x86-64-v3+ compatible"; \
+		echo ""; \
+		echo "Para build optimizado local (CPU-only con OpenBLAS):"; \
+		echo "  make install-optimized"; \
+	fi
+	@echo ""
+	@echo "Librerías activas:"
+	@$(PYTHON) -c "import llama_cpp; print(f'  llama-cpp-python: {llama_cpp.__version__}'); print(f'  Backend: {llama_cpp.__file__}')" 2>/dev/null || echo "  ⚠️ llama-cpp-python no instalado"
+	@echo ""
+	@echo "Threads recomendados para tu CPU:"
+	@if [ -f ".local/lib/build_info.json" ]; then \
+		OPTIMAL=$$(cat .local/lib/build_info.json | jq -r .optimal_threads); \
+		echo "  • Optimal: $$OPTIMAL threads (basado en benchmarks)"; \
+	else \
+		CORES=$$(nproc); \
+		RECOMMENDED=$$((CORES * 3 / 4)); \
+		echo "  • CPU Cores: $$CORES"; \
+		echo "  • Recomendado: $$RECOMMENDED threads (75% de cores)"; \
 	fi
 
 # Target por defecto

@@ -3,7 +3,7 @@ TTS Engine for SARAi - M3.2 Fase 3
 ===================================
 
 3-Level Fallback TTS System:
-1. Qwen2.5-Omni-3B TTS (native, high quality)
+1. Qwen3-VL-4B-Instruct TTS (native, high quality)
 2. pyttsx3 (local, fast fallback)
 3. Text-only (graceful degradation)
 
@@ -65,7 +65,7 @@ class TTSOutput:
 @dataclass
 class TTSConfig:
     """Configuration for TTS Engine"""
-    enable_omni: bool = True  # Use Qwen2.5-Omni-3B
+    enable_omni: bool = True  # Use Qwen3-VL-4B-Instruct
     enable_pyttsx3: bool = True  # Fallback to pyttsx3
     enable_cache: bool = True  # Cache TTS outputs
     cache_dir: str = "state/tts_cache"
@@ -248,7 +248,7 @@ class TTSEngine:
     3-Level Fallback TTS Engine
     
     Priority:
-    1. Qwen2.5-Omni-3B (native, high quality)
+    1. Qwen3-VL-4B-Instruct (native, high quality)
     2. pyttsx3 (local, fast fallback)
     3. Text-only (graceful degradation)
     
@@ -386,7 +386,7 @@ class TTSEngine:
     
     def _generate_omni(self, text: str, prosody_params: Optional[Dict]) -> bytes:
         """
-        Generate TTS using Qwen2.5-Omni-3B
+        Generate TTS using Qwen3-VL-4B-Instruct
         
         Uses native audio-to-audio capability with emotion prosody
         """

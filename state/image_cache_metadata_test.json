@@ -1,0 +1,112 @@
+{
+  "entries": {
+    "2218ea357d6a91b156bbd34b7897efe277327f5fa7ad281110c0a43849c992d5": {
+      "file_path": "state/image_cache_test/2218ea357d6a91b156bbd34b7897efe277327f5fa7ad281110c0a43849c992d5.preprocessed",
+      "image_id": "beach_sunset",
+      "created": 1761730110.9561403,
+      "last_access": 1761730110.983813,
+      "size_bytes": 65039,
+      "access_count": 1
+    },
+    "c98f5586d76cb5e7a11760113e3ab627a873bc1ab4d04ef26856083253d6cc74": {
+      "file_path": "state/image_cache_test/c98f5586d76cb5e7a11760113e3ab627a873bc1ab4d04ef26856083253d6cc74.preprocessed",
+      "image_id": "cat_window",
+      "created": 1761730110.957987,
+      "last_access": 1761730110.9851542,
+      "size_bytes": 42748,
+      "access_count": 1
+    },
+    "4d61ea0587cd99465bef97de7a6e792d11bf4160b1951cad502d3f8abfd9df3c": {
+      "file_path": "state/image_cache_test/4d61ea0587cd99465bef97de7a6e792d11bf4160b1951cad502d3f8abfd9df3c.preprocessed",
+      "image_id": "coffee_cup",
+      "created": 1761730110.9603498,
+      "last_access": 1761730110.9867284,
+      "size_bytes": 160203,
+      "access_count": 1
+    },
+    "7bf5e1e17c33afdcacf2feafc806a1e7dfbf1ec10ff20010998547767b09c47d": {
+      "file_path": "state/image_cache_test/7bf5e1e17c33afdcacf2feafc806a1e7dfbf1ec10ff20010998547767b09c47d.preprocessed",
+      "image_id": "dog_park",
+      "created": 1761730110.962528,
+      "last_access": 1761730110.9879394,
+      "size_bytes": 49440,
+      "access_count": 1
+    },
+    "ba92f1a1baadec062c5858d0d4b769f3c2f4f1870e7325a373208633a0e8a6de": {
+      "file_path": "state/image_cache_test/ba92f1a1baadec062c5858d0d4b769f3c2f4f1870e7325a373208633a0e8a6de.preprocessed",
+      "image_id": "fruits",
+      "created": 1761730110.964156,
+      "last_access": 1761730110.989408,
+      "size_bytes": 99729,
+      "access_count": 1
+    },
+    "fa718ee0cbd91c0e277d9a2b206b36b87e9839bdad7ad626d16c7d66612735f0": {
+      "file_path": "state/image_cache_test/fa718ee0cbd91c0e277d9a2b206b36b87e9839bdad7ad626d16c7d66612735f0.preprocessed",
+      "image_id": "happy_person",
+      "created": 1761730110.966073,
+      "last_access": 1761730110.990962,
+      "size_bytes": 87095,
+      "access_count": 1
+    },
+    "dec199e7f86ff89ef70a39a99ad31c8cf4bea39738d184f8b6aa291139039840": {
+      "file_path": "state/image_cache_test/dec199e7f86ff89ef70a39a99ad31c8cf4bea39738d184f8b6aa291139039840.preprocessed",
+      "image_id": "menu_restaurant",
+      "created": 1761730110.9679918,
+      "last_access": 1761730110.99229,
+      "size_bytes": 121359,
+      "access_count": 1
+    },
+    "31ad2c2044b75755fcf19070001d41f5ff0ee12564b8cf957cbd904bcace804b": {
+      "file_path": "state/image_cache_test/31ad2c2044b75755fcf19070001d41f5ff0ee12564b8cf957cbd904bcace804b.preprocessed",
+      "image_id": "mountain_landscape",
+      "created": 1761730110.969895,
+      "last_access": 1761730110.993683,
+      "size_bytes": 64481,
+      "access_count": 1
+    },
+    "868780221d233ff87159afc57b2c668bafbcad68039dd79712e7c9c0a299a0de": {
+      "file_path": "state/image_cache_test/868780221d233ff87159afc57b2c668bafbcad68039dd79712e7c9c0a299a0de.preprocessed",
+      "image_id": "pelicula",
+      "created": 1761730110.9724414,
+      "last_access": 1761730110.9954207,
+      "size_bytes": 203099,
+      "access_count": 1
+    },
+    "9a3468e109d1486216db9694907e7f20081682651dcbe12817dab839a972a80d": {
+      "file_path": "state/image_cache_test/9a3468e109d1486216db9694907e7f20081682651dcbe12817dab839a972a80d.preprocessed",
+      "image_id": "pizza",
+      "created": 1761730110.9746664,
+      "last_access": 1761730110.9976964,
+      "size_bytes": 131247,
+      "access_count": 1
+    },
+    "2eb26a87a5d7f93a8c3b5fcdb7931621fea2e3b4e7622d5dc3f12e6103da96a6": {
+      "file_path": "state/image_cache_test/2eb26a87a5d7f93a8c3b5fcdb7931621fea2e3b4e7622d5dc3f12e6103da96a6.preprocessed",
+      "image_id": "sad_person",
+      "created": 1761730110.9767668,
+      "last_access": 1761730110.9989364,
+      "size_bytes": 56144,
+      "access_count": 1
+    },
+    "4f6eec24358cd769786dbb75cdb45cb02c7ddb75439a6eb91e25261262528b15": {
+      "file_path": "state/image_cache_test/4f6eec24358cd769786dbb75cdb45cb02c7ddb75439a6eb91e25261262528b15.preprocessed",
+      "image_id": "stacked_books",
+      "created": 1761730110.9790707,
+      "last_access": 1761730111.000234,
+      "size_bytes": 66852,
+      "access_count": 1
+    },
+    "0146a54759d11ce2781ce597aaeb11ce83a5ca0502919122a3bbb5897a81ab2f": {
+      "file_path": "state/image_cache_test/0146a54759d11ce2781ce597aaeb11ce83a5ca0502919122a3bbb5897a81ab2f.preprocessed",
+      "image_id": "street_signs",
+      "created": 1761730110.9815266,
+      "last_access": 1761730111.0016625,
+      "size_bytes": 111849,
+      "access_count": 1
+    }
+  },
+  "stats": {
+    "total_accesses": 52,
+    "cache_hits": 26
+  }
+}

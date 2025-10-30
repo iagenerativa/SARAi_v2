@@ -1,0 +1,53 @@
+{
+  "neutral": [
+    {"text": "un momento", "style": "neutral", "duration_ms": 800},
+    {"text": "déjame pensar", "style": "neutral", "duration_ms": 1200},
+    {"text": "veamos", "style": "neutral", "duration_ms": 600},
+    {"text": "mmm", "style": "neutral", "duration_ms": 400},
+    {"text": "a ver", "style": "neutral", "duration_ms": 500},
+    {"text": "dame un segundo", "style": "neutral", "duration_ms": 1100}
+  ],
+  "empathetic": [
+    {"text": "entiendo", "style": "empathetic", "duration_ms": 700},
+    {"text": "claro", "style": "empathetic", "duration_ms": 500},
+    {"text": "te escucho", "style": "empathetic", "duration_ms": 800},
+    {"text": "ya veo", "style": "empathetic", "duration_ms": 600},
+    {"text": "comprendo", "style": "empathetic", "duration_ms": 750}
+  ],
+  "calm_positive": [
+    {"text": "perfecto", "style": "calm_positive", "duration_ms": 700},
+    {"text": "muy bien", "style": "calm_positive", "duration_ms": 650},
+    {"text": "de acuerdo", "style": "calm_positive", "duration_ms": 900},
+    {"text": "genial", "style": "calm_positive", "duration_ms": 600}
+  ],
+  "soothing": [
+    {"text": "tranquilo", "style": "soothing", "duration_ms": 800},
+    {"text": "con calma", "style": "soothing", "duration_ms": 850},
+    {"text": "no te preocupes", "style": "soothing", "duration_ms": 1300},
+    {"text": "está bien", "style": "soothing", "duration_ms": 700}
+  ],
+  "short_assurance": [
+    {"text": "sí", "style": "short_assurance", "duration_ms": 300},
+    {"text": "vale", "style": "short_assurance", "duration_ms": 400},
+    {"text": "ok", "style": "short_assurance", "duration_ms": 350},
+    {"text": "ajá", "style": "short_assurance", "duration_ms": 400}
+  ],
+  "steadying": [
+    {"text": "vamos a ver", "style": "steadying", "duration_ms": 900},
+    {"text": "déjame revisar", "style": "steadying", "duration_ms": 1100},
+    {"text": "espera un momento", "style": "steadying", "duration_ms": 1300},
+    {"text": "voy a comprobar", "style": "steadying", "duration_ms": 1200}
+  ],
+  "gentle_engagement": [
+    {"text": "qué interesante", "style": "gentle_engagement", "duration_ms": 1100},
+    {"text": "cuéntame más", "style": "gentle_engagement", "duration_ms": 950},
+    {"text": "eso suena bien", "style": "gentle_engagement", "duration_ms": 1000},
+    {"text": "me parece bien", "style": "gentle_engagement", "duration_ms": 1050}
+  ],
+  "urgent": [
+    {"text": "disculpa", "style": "urgent", "duration_ms": 700},
+    {"text": "perdón", "style": "urgent", "duration_ms": 600},
+    {"text": "un segundo", "style": "urgent", "duration_ms": 800},
+    {"text": "espera", "style": "urgent", "duration_ms": 550}
+  ]
+}

@@ -1837,7 +1837,7 @@ from typing import Tuple, Optional
 import os
 from core.audit import is_safe_mode
 
-OMNI_LANGS = ["es", "en"]  # Qwen2.5-Omni-3B soporta
+OMNI_LANGS = ["es", "en"]  # Qwen3-VL-4B-Instruct soporta
 NLLB_LANGS = ["fr", "de", "ja", "pt", "it", "ru"]  # NLLB traducción
 
 def route_audio(audio_bytes: bytes) -> Tuple[str, bytes, Optional[str]]:
@@ -2057,7 +2057,7 @@ def process_audio_input(audio_bytes: bytes) -> str:
     
     # PASO 2: Procesar según motor
     if engine == "omni":
-        # Qwen2.5-Omni-3B (empatía nativa)
+        # Qwen3-VL-4B-Instruct (empatía nativa)
         omni_model = model_pool.get("omni3b")
         result = omni_model.process_audio(
             audio_bytes=audio,
@@ -2106,7 +2106,7 @@ def process_audio_input(audio_bytes: bytes) -> str:
 
 # Motor principal de procesamiento de audio
 # Opciones:
-#   - omni3b: (Default) Qwen2.5-Omni-3B. Baja latencia (<250ms), alta empatía.
+#   - omni3b: (Default) Qwen3-VL-4B-Instruct. Baja latencia (<250ms), alta empatía.
 #             Idiomas: Español, Inglés (nativos)
 #             Hardware: i7 8GB+ o Pi-4 con zram
 #   

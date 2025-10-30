@@ -1,6 +1,8 @@
 """
 ModelPool v2.4: Cache LRU/TTL con sistema de fallback tolerante a fallos
 Gestión automática de memoria + resiliencia para SARAi v2.4
+
+NEW v2.16 (Risk #5): Timeout dinámico basado en n_ctx
 """
 
 import os
@@ -11,6 +13,34 @@ from collections import OrderedDict
 from pathlib import Path
 import yaml
 from huggingface_hub import hf_hub_download
+
+
+def _calculate_timeout(n_ctx: int) -> int:
+    """
+    NEW v2.16 (Risk #5): Calcula timeout adaptativo según contexto
+    
+    Fórmula: timeout = 10s + (n_ctx / 1024) * 10s
+    
+    Tabla de referencia:
+    - n_ctx=512:  10 + (512/1024)*10  = 15s
+    - n_ctx=1024: 10 + (1024/1024)*10 = 20s
+    - n_ctx=2048: 10 + (2048/1024)*10 = 30s
+    - n_ctx=4096: 10 + (4096/1024)*10 = 50s
+    - n_ctx=8192: 10 + (8192/1024)*10 = 90s → max(90, 60) = 60s
+    
+    Args:
+        n_ctx: Tamaño del contexto (context window)
+    
+    Returns:
+        Timeout en segundos (máximo 60s)
+    """
+    base_timeout = 10  # Segundos base para contextos pequeños
+    scaling_factor = 10  # Segundos adicionales por cada 1024 tokens
+    
+    timeout = base_timeout + (n_ctx / 1024) * scaling_factor
+    
+    # Límite superior: 60s (contextos muy grandes no deberían bloquear indefinidamente)
+    return min(int(timeout), 60)
 
 
 class ModelPool:
@@ -280,6 +310,9 @@ class ModelPool:
         # Determinar n_ctx (context_length override o config default)
         n_ctx = context_length if context_length is not None else model_cfg.get('context_length', 2048)
         
+        # NEW v2.16 (Risk #5): Calcular timeout dinámico basado en n_ctx
+        request_timeout = _calculate_timeout(n_ctx)
+        
         # Determinar n_threads (1 para prefetch, full para carga normal)
         runtime_cfg = self.config.get('runtime', {})
         if prefetch:
@@ -291,6 +324,8 @@ class ModelPool:
         memory_cfg = self.config.get('memory', {})
         use_mmap = memory_cfg.get('use_mmap', True)
         use_mlock = memory_cfg.get('use_mlock', False)
+        
+        print(f"[ModelPool] Cargando GGUF con n_ctx={n_ctx}, timeout={request_timeout}s")
         
         # Cargar con llama-cpp
         return Llama(
@@ -393,6 +428,125 @@ class ModelPool:
                 for name, ts in self.timestamps.items()
             }
         }
+    
+    def get_skill_client(self, skill_name: str):
+        """
+        NEW v2.16: Obtiene cliente gRPC para skill containerizado
+        
+        PHOENIX INTEGRATION:
+        - Connection pooling: reutiliza clientes gRPC
+        - Health checks: verifica que container esté activo
+        - Auto-reconnect: re-crea cliente si conexión falla
+        
+        Args:
+            skill_name: Nombre del skill ("draft", "image", "lora-trainer", etc.)
+        
+        Returns:
+            Cliente gRPC del skill (tipo específico según skill)
+        
+        Raises:
+            RuntimeError: Si skill no está disponible
+        
+        Example:
+            ```python
+            pool = get_model_pool()
+            draft_client = pool.get_skill_client("draft")
+            response = draft_client.Generate(request, timeout=10.0)
+            ```
+        """
+        # Importar gRPC stubs (lazy import)
+        try:
+            from skills import skills_pb2_grpc
+            import grpc
+        except ImportError:
+            raise ImportError(
+                "gRPC no instalado. Ejecuta: pip install grpcio grpcio-tools"
+            )
+        
+        # Cache de clientes gRPC (para reutilizar conexiones)
+        if not hasattr(self, '_skill_clients'):
+            self._skill_clients: Dict[str, Any] = {}
+        
+        # Si el cliente ya existe en cache, retornarlo
+        if skill_name in self._skill_clients:
+            # Verificar que la conexión sigue activa
+            client = self._skill_clients[skill_name]
+            try:
+                # Health check simple (timeout corto)
+                # TODO: Implementar método Health() en proto si no existe
+                return client
+            except:
+                # Conexión muerta, eliminar y recrear
+                print(f"[ModelPool] Conexión muerta para skill '{skill_name}', recreando...")
+                del self._skill_clients[skill_name]
+        
+        # Mapeo de skill_name a puerto gRPC (según docker-compose)
+        skill_ports = {
+            "draft": 50051,      # skill_draft container
+            "image": 50052,      # skill_image container
+            "lora-trainer": 50053,  # skill_lora_trainer container
+            "sql": 50054,        # skill_sql container (existente)
+            "home_ops": 50055    # skill_home_ops container (existente)
+        }
+        
+        if skill_name not in skill_ports:
+            raise ValueError(
+                f"Skill '{skill_name}' no reconocido. "
+                f"Skills disponibles: {list(skill_ports.keys())}"
+            )
+        
+        # Construir dirección del skill
+        # En producción: "skill_<name>:50051" (DNS de Docker)
+        # En desarrollo: "localhost:<port>" (port forwarding)
+        use_docker_dns = os.getenv("USE_DOCKER_DNS", "true").lower() == "true"
+        
+        if use_docker_dns:
+            address = f"skill_{skill_name}:{skill_ports[skill_name]}"
+        else:
+            address = f"localhost:{skill_ports[skill_name]}"
+        
+        # Crear canal gRPC
+        print(f"[ModelPool] Conectando a skill '{skill_name}' en {address}...")
+        
+        channel = grpc.insecure_channel(
+            address,
+            options=[
+                ('grpc.max_send_message_length', 50 * 1024 * 1024),  # 50MB
+                ('grpc.max_receive_message_length', 50 * 1024 * 1024),
+                ('grpc.keepalive_time_ms', 30000),  # 30s keepalive
+                ('grpc.keepalive_timeout_ms', 10000),  # 10s timeout
+            ]
+        )
+        
+        # Crear stub según el skill
+        if skill_name in ["draft", "image", "lora-trainer"]:
+            # Skills genéricos usan SkillsService
+            client = skills_pb2_grpc.SkillsServiceStub(channel)
+        else:
+            # Skills específicos (sql, home_ops) tienen sus propios stubs
+            # TODO: Manejar caso por caso si tienen protos diferentes
+            client = skills_pb2_grpc.SkillsServiceStub(channel)
+        
+        # Guardar en cache
+        self._skill_clients[skill_name] = client
+        
+        print(f"✅ Cliente gRPC para '{skill_name}' creado")
+        
+        return client
+    
+    def close_skill_clients(self):
+        """
+        NEW v2.16: Cierra todos los clientes gRPC
+        Llamar al finalizar la aplicación
+        """
+        if hasattr(self, '_skill_clients'):
+            for skill_name in list(self._skill_clients.keys()):
+                print(f"[ModelPool] Cerrando cliente gRPC: {skill_name}")
+                # gRPC channels se cierran automáticamente al liberar referencia
+                del self._skill_clients[skill_name]
+            
+            self._skill_clients.clear()
+            print("✅ Todos los clientes gRPC cerrados")
 
 
 # Singleton global (inicializado en main.py)

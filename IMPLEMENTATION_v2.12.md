@@ -774,7 +774,7 @@ def empathize_output(skill_output, user_query: str, emotion: str = "neutral") ->
     """
     Convert structured skill output to empathetic natural voice
     
-    Uses Qwen2.5-Omni-3B for voice-friendly responses
+    Uses Qwen3-VL-4B-Instruct for voice-friendly responses
     
     Args:
         skill_output: SkillOutput from any skill

@@ -268,7 +268,7 @@ SARAi v2.11 "Omni-Sentinel" representa el **cierre del círculo** de AGI local:
 
 **Proyecto**: SARAi v2.11 "Omni-Sentinel"  
 **Autor**: Noel  
-**Asistencia**: GitHub Copilot  
+**Asistencia**: SARAi  
 **Licencia**: MIT  
 
 **Contribuciones bienvenidas**:

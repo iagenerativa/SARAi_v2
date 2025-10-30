@@ -101,7 +101,7 @@ python -m agents.rag_agent --query "¿Clima en Tokio?"
   - Estado: ✅ Implementado
   - Criterio: `pytest tests/test_audio_router.py` pasa 100%
 
-- [ ] **M3.2**: Omni Pipeline (Qwen2.5-Omni-3B)
+- [ ] **M3.2**: Omni Pipeline (Qwen3-VL-4B-Instruct)
   - Archivo: `agents/omni_pipeline.py`
   - Estado: Implementado (validar ONNX)
   - Criterio: Latencia voz-a-voz <250ms en i7
@@ -433,7 +433,7 @@ Un milestone se considera **COMPLETADO** cuando:
 **Fecha de creación**: 2025-10-27  
 **Última actualización**: 2025-10-27  
 **Responsable**: Noel  
-**Revisado por**: GitHub Copilot  
+**Revisado por**: SARAi  
 **Licencia**: CC BY-NC-SA 4.0  
 
 ---

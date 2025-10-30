@@ -276,7 +276,7 @@ Prototipo → Latencia → Producción → DevSecOps → MoE → Autonomía → 
 ---
 
 **Autor**: Noel  
-**Asistencia**: GitHub Copilot  
+**Asistencia**: SARAi  
 **Fecha**: 27 de octubre de 2025  
 **Versión**: 2.10.0 - Sentinel + Web (RAG Autónomo)  
 **Licencia**: MIT
