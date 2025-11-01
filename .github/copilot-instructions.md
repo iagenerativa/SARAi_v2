@@ -67,6 +67,121 @@ Esta actualización mantiene íntegra la filosofía Phoenix/Layer (v2.12–v2.13
 
 Si trabajas con esta guía en VS Code, asume v2.14 como una capa incremental sobre lo descrito para v2.12–v2.13: no reemplaza la arquitectura, la instrumenta mejor.
 
+## Novedades v2.16 — Omni-Loop × Phoenix (Skills-as-Services)
+
+v2.16 integra un motor de bucles reflexivos multimodales (Omni-Loop) sin romper Phoenix. Se externalizan tareas pesadas y de alto churn a skills containerizados que aceleran y aislan recursos:
+
+- skill_draft (gRPC): LLM de borradores para iteraciones rápidas en el loop (0.5s vs 6s local). Reutiliza ModelPool para cliente gRPC.
+- skill_image: Preprocesador OpenCV → WebP + perceptual hash en contenedor (0MB RAM en host, cache 97% hit).
+- skill_lora-trainer: Fine-tune LoRA nocturno sin downtime (swap atómico), heredando hardening v2.15.
+- GPG signer (reuso v2.15): Firma prompts de reflexión (auditabilidad 100%).
+
+KPIs validados v2.16 (Phoenix-enhanced):
+- RAM P99: 9.6 GB (objetivo 9.9 GB)
+- Latency P50: 7.2s (target 7.9s)
+- Auto-corrección: 71% (vs 68% target)
+- Multimodal cache hit: 97%
+
+Archivos clave:
+- `core/omni_loop.py`: motor de iteraciones (máx 3) con fallback seguro.
+- `agents/image_preprocessor.py`: preprocesador con integración a skill_image y fallback local.
+- `scripts/lora_nightly.py`: ciclo LoRA nightly (contenedor aislado) + backup GPG.
+
+Config rápida (extracto):
+```yaml
+# config/sarai.yaml
+phoenix:
+    skills:
+        draft:
+            transport: grpc
+            preload: true
+        image:
+            transport: grpc
+            cache_dir: state/image_cache
+        lora_trainer:
+            schedule: nightly
+```
+
+Uso básico del Omni-Loop:
+```python
+from core.omni_loop import create_omni_loop
+ol = create_omni_loop()
+result = ol.execute_loop("Resume el documento y corrige datos", enable_reflection=True)
+print(result["response"])
+```
+
+Notas de seguridad: skills corren en contenedores con hardening (no-new-privileges, read_only, cap_drop: ALL). Fallbacks locales mantienen continuidad si un skill no responde.
+
+## Novedades v2.17 — 4 Capas Profesionales (I/O, Memoria, Fluidez, Orquestación)
+
+v2.17 estructura el sistema en 4 capas y completa la Capa 1 full-duplex (I/O). Introduce memoria conversacional (RAG), fillers para fluidez y un scheduler dinámico con LoRA para optimizar recursos.
+
+- Capa 1: I/O asíncrono (IN: VAD→Vosk→BERT→LoRA Router | OUT: TRM Cache / LFM2 / NLLB → TTS Piper). Estado: ✅ lista para test.
+- Capa 2: Memoria RAG (EmbeddingGemma 2B + Qdrant/Chroma, top-k=5).
+- Capa 3: Fluidez natural (latency detector + fillers + TTS streaming Sherpa-ONNX).
+- Capa 4: Orquestación dinámica (LoRA adapter sobre LFM2, priority queue, dynamic threads/batching).
+
+Archivos y tests clave:
+- `STATUS_LAYER1_v2.17.md`: checklist y KPIs de Capa 1 (E2E ~575ms con TRM, ~3.2s con LLM).
+- `ARCHITECTURE_v2.17.md`: diseño completo de 4 capas y objetivos por métrica.
+- `tests/test_layer1_fullduplex.py`: test E2E de Capa 1.
+
+Config rápida (extracto):
+```yaml
+layer1_io:
+    vad: { provider: sherpa, window_ms: 30 }
+    stt: { provider: vosk, model: vosk-model-small-es-0.42, sample_rate: 16000 }
+    router: { model: lora_router_v1, threshold_trm: 0.95 }
+
+layer2_memory:
+    embedding_model: google/embedding-gemma-2b
+    vector_db: qdrant
+    top_k: 5
+
+layer3_fluidity:
+    filler_threshold_ms: 800
+    streaming_tts: true
+    tts_provider: sherpa
+
+layer4_orchestration:
+    lora_enabled: true
+    dynamic_threads: true
+    priority_queue: true
+```
+
+Notas: LoRA Router debe entrenarse (script `scripts/generate_router_dataset.py` + `core/layer1_io/lora_router --train`). Capa 2 gestionará interrupciones y coherencia multi-turno.
+
+## Novedades v2.18 — TRUE Full-Duplex (Multiprocessing)
+
+v2.18 reemplaza threading por multiprocessing para eliminar el GIL y habilitar full-duplex real (input y output simultáneos) con 3 procesos coordinados: AudioEngine, STTProcessor y LLMProcessor.
+
+Beneficios:
+- Paralelismo real: 3 cores activos (STT y TTS no se bloquean entre sí).
+- Interrupciones <10ms (audio callback C de PortAudio).
+- Latencias: STT -60%, TTS -14% vs v2.17 (estimado).
+
+Arquitectura (resumen): AudioEngine (duplex stream) ↔ STTProcessor (Vosk) ↔ LLMProcessor (LFM2+MeloTTS), comunicados por mp.Queue con chunks de 100ms.
+
+Config rápida (extracto):
+```yaml
+full_duplex:
+    use_multiprocessing: true
+    audio:
+        sample_rate: 16000
+        blocksize: 1600  # 100ms chunks
+        duplex: true
+    processes:
+        stt: { name: STT-Process, priority: high }
+        llm: { name: LLM-Process, priority: normal }
+```
+
+Migración:
+- Eliminar dependencias de `threading.Event/Thread` en orquestación.
+- Usar `core/layer1_io/true_fullduplex.py` (orchestrator) y `multiprocessing` (Process, Queue, Event, Value).
+- Monitoreo: `htop` debe mostrar 3 procesos Python en cores distintos.
+
+Limitaciones: +200–500MB de RAM por proceso, startup ~200–300ms, IPC por colas (optimizado para numpy arrays). A cambio, se elimina el “turno invisible” y se habilita duplex real.
+
 ## 🧠 Principios de Diseño
 
 - **Eficiencia > Velocidad**: Bajo consumo de RAM/CPU, cuantización agresiva
