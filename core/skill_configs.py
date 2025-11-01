@@ -72,8 +72,8 @@ class SkillConfig:
 
 PROGRAMMING_SKILL = SkillConfig(
     name="programming",
-    description="Experto en programación y desarrollo de software",
-    system_prompt="""You are an expert programming assistant with deep knowledge of:
+    description="Experto en programación y desarrollo de software (VisCoder2-7B)",
+    system_prompt="""You are VisCoder2, an expert programming assistant with deep knowledge of:
 - Multiple programming languages (Python, JavaScript, Rust, Go, C++, Java)
 - Software design patterns and best practices
 - Algorithm optimization and complexity analysis
@@ -85,12 +85,13 @@ Your responses should be:
 - Include code examples with clear explanations
 - Consider edge cases and error handling
 - Follow language-specific best practices
-- Provide performance considerations when relevant""",
+- Provide performance considerations when relevant
+- Include type hints (Python) or JSDoc (JavaScript) where applicable""",
     keywords=["code", "programming", "función", "clase", "debug", "test", "algoritmo", "código", "implementa"],
     temperature=0.3,  # Baja para código preciso
     max_tokens=3072,
     top_p=0.85,
-    preferred_model="solar",
+    preferred_model="viscoder2",  # ✨ Usa VisCoder2 especializado
     use_case="code_generation"
 )
 

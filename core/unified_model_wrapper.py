@@ -519,19 +519,88 @@ class OllamaModelWrapper(UnifiedModelWrapper):
     def _load_model(self) -> None:
         """
         Ollama no requiere carga en memoria Python.
-        Solo verificamos que el servidor esté disponible.
+        Solo verificamos que el servidor esté disponible y resolvemos
+        variables de entorno críticas (api_url, model_name).
         """
         import requests
-        
-        api_url = self.config["api_url"]
-        
+        import re
+
+        def resolve_env(value: Optional[str], *, default: Optional[str] = None, label: str = "value") -> str:
+            """Resuelve ${VAR} usando variables de entorno."""
+            if not value:
+                return default if default is not None else ""
+
+            pattern = re.compile(r"\$\{([^}]+)\}")
+
+            def replace(match: re.Match) -> str:
+                env_var = match.group(1)
+                env_value = os.getenv(env_var)
+                if env_value is None:
+                    logger.warning(
+                        "Environment variable %s referenced in %s but not set",
+                        env_var,
+                        label,
+                    )
+                    return match.group(0)
+                return env_value
+
+            resolved = pattern.sub(replace, value)
+
+            if "${" in resolved:
+                # Sustituir por default si queda sin resolver
+                if default is not None:
+                    logger.warning(
+                        "Environment variable unresolved in %s: %s. Using default %s",
+                        label,
+                        resolved,
+                        default,
+                    )
+                    return default
+            return resolved
+
+        # Resolver API URL y asegurar formato correcto
+        raw_api_url = self.config.get("api_url", "http://192.168.0.251:11434")
+        api_url = resolve_env(raw_api_url, default="http://192.168.0.251:11434", label="api_url")
+        api_url = api_url.rstrip("/")  # Normalizar para evitar //
+
         try:
             response = requests.get(f"{api_url}/api/tags", timeout=5)
             response.raise_for_status()
             logger.info(f"Ollama server available at {api_url}")
         except Exception as e:
             raise ConnectionError(f"Ollama server not available: {e}")
-        
+
+        tags_payload = response.json() if response.content else {}
+        available_models = [
+            model.get("name")
+            for model in tags_payload.get("models", [])
+            if isinstance(model, dict) and model.get("name")
+        ]
+
+        # Resolver model_name con fallback al primer modelo disponible
+        raw_model_name = self.config.get("model_name")
+        default_model = available_models[0] if available_models else ""
+        model_name = resolve_env(raw_model_name, default=default_model, label="model_name")
+
+        if not model_name:
+            raise ValueError(
+                "No Ollama model available. Configure 'model_name' or ensure the server has at least one model."
+            )
+
+        if available_models and model_name not in available_models:
+            logger.warning(
+                "Requested Ollama model '%s' not found. Available: %s. Using '%s' instead.",
+                model_name,
+                ", ".join(available_models),
+                available_models[0],
+            )
+            model_name = available_models[0]
+
+        # Guardar valores resueltos para reutilizar en invoke
+        self._resolved_api_url = api_url
+        self._resolved_model_name = model_name
+        self._available_ollama_models = available_models
+
         return None  # No model object
     
     def _invoke_sync(self, input: InputType, config: Optional[Dict] = None) -> str:
@@ -546,9 +615,13 @@ class OllamaModelWrapper(UnifiedModelWrapper):
         else:
             prompt = str(input)
         
-        # Parámetros
-        api_url = self.config["api_url"]
-        model_name = self.config["model_name"]
+        # Usar valores resueltos (de _load_model); si no existen, forzar carga
+        if not hasattr(self, "_resolved_api_url") or not hasattr(self, "_resolved_model_name"):
+            # Carga perezosa segura
+            self._ensure_loaded()
+
+        api_url = getattr(self, "_resolved_api_url", self.config.get("api_url", "http://192.168.0.251:11434"))
+        model_name = getattr(self, "_resolved_model_name", self.config.get("model_name"))
         temperature = config.get("temperature", 0.7) if config else 0.7
         
         # Request
@@ -669,6 +742,203 @@ class OpenAIAPIWrapper(UnifiedModelWrapper):
 
 
 # ============================================================================
+# BACKEND 6: Embedding Model Wrapper (EmbeddingGemma-300M)
+# ============================================================================
+
+class EmbeddingModelWrapper(UnifiedModelWrapper):
+    """
+    Wrapper para modelos de embeddings (vector representations).
+    
+    Soporta:
+        - EmbeddingGemma-300M (Google, 768-dim)
+        - Otros modelos de embeddings HuggingFace
+    
+    CRÍTICO: Este wrapper retorna VECTORES (np.ndarray), no texto.
+    
+    Config esperada:
+        repo_id: HuggingFace repo (ej: "google/embeddinggemma-300m-qat-q4_0-unquantized")
+        embedding_dim: Dimensión del vector (ej: 768)
+        quantization: "4bit" | "8bit" | "fp16"
+        device: "cpu" | "cuda"
+        cache_dir: Directorio de cache
+    
+    API:
+        invoke(text: str) -> np.ndarray  # Retorna vector 1D
+        invoke(texts: List[str]) -> List[np.ndarray]  # Batch processing
+    """
+    
+    def _load_model(self) -> Any:
+        """
+        Carga modelo de embeddings desde HuggingFace.
+        
+        Usa SentenceTransformers para simplicidad y compatibilidad.
+        """
+        import numpy as np
+        import torch
+        from transformers import AutoModel, AutoTokenizer
+
+        repo_id = self.config.get("repo_id") or self.config.get("source")
+        cache_dir = self.config.get("cache_dir", "models/cache/embeddings")
+        device_str = self.config.get("device", "cpu")
+
+        if not repo_id:
+            raise ValueError(f"Embedding model {self.name} missing 'repo_id' or 'source'")
+
+        device = torch.device(device_str)
+        dtype = torch.float16 if device.type != "cpu" else torch.float32
+
+        logger.info(f"🔄 Loading embedding model: {repo_id} on {device_str}")
+
+        try:
+            from transformers import GemmaTokenizer  # noqa: F401
+        except (ImportError, AttributeError):
+            # Algunos builds no exponen GemmaTokenizer directamente.
+            try:
+                import importlib
+                importlib.import_module("transformers.models.gemma.tokenization_gemma")
+            except ImportError as exc:
+                raise ImportError(
+                    "GemmaTokenizer no disponible en transformers. "
+                    "Actualiza transformers>=4.39 o instala los extras necesarios."
+                ) from exc
+
+        tokenizer = AutoTokenizer.from_pretrained(
+            repo_id,
+            cache_dir=cache_dir,
+            trust_remote_code=True
+        )
+
+        model = AutoModel.from_pretrained(
+            repo_id,
+            cache_dir=cache_dir,
+            torch_dtype=dtype,
+            device_map="cpu" if device.type == "cpu" else "auto",
+            low_cpu_mem_usage=True,
+            trust_remote_code=True
+        )
+
+        model.to(device)
+        model.eval()
+
+        self._tokenizer = tokenizer
+        self._device = device
+        self._dtype = dtype
+        self._normalize = self.config.get("normalize", True)
+        self._max_length = self.config.get("max_length", 512)
+
+        expected_dim = self.config.get("embedding_dim", 768)
+        self._embedding_dim = expected_dim
+
+        # Probar embedding rápido para validar dimensión
+        with torch.no_grad():
+            sample_inputs = tokenizer(
+                ["dummy"],
+                padding=True,
+                truncation=True,
+                max_length=self._max_length,
+                return_tensors="pt"
+            )
+            sample_inputs = {k: v.to(device) for k, v in sample_inputs.items()}
+            outputs = model(**sample_inputs)
+            sample_embedding = outputs.last_hidden_state.mean(dim=1)
+            sample_dim = sample_embedding.shape[-1]
+
+        if sample_dim != expected_dim:
+            logger.warning(
+                "Embedding dimension mismatch: expected %s, got %s",
+                expected_dim,
+                sample_dim,
+            )
+            self._embedding_dim = sample_dim
+
+        logger.info(
+            "✅ Embedding model loaded: %s-dim vectors (normalize=%s)",
+            self._embedding_dim,
+            self._normalize,
+        )
+
+        return model
+    
+    def _invoke_sync(self, input: InputType, config: Optional[Dict] = None) -> Any:
+        """
+        Genera embeddings para texto(s).
+        
+        Args:
+            input: str o List[str]
+            config: Configuración opcional (no usado en embeddings)
+        
+        Returns:
+            np.ndarray (1D si input es str)
+            List[np.ndarray] (si input es List[str])
+        """
+        import numpy as np
+        import torch
+        
+        # Normalizar input
+        if isinstance(input, str):
+            texts = [input]
+            single_input = True
+        elif isinstance(input, list):
+            # Convertir LangChain messages a strings
+            if input and hasattr(input[0], 'content'):
+                texts = [msg.content for msg in input]
+            else:
+                texts = [str(item) for item in input]
+            single_input = False
+        else:
+            texts = [str(input)]
+            single_input = True
+        
+        # Generar embeddings
+        tokenizer = self._tokenizer
+        device = self._device
+        max_length = self._max_length
+
+        inputs = tokenizer(
+            texts,
+            padding=True,
+            truncation=True,
+            max_length=max_length,
+            return_tensors="pt"
+        )
+        inputs = {k: v.to(device) for k, v in inputs.items()}
+
+        with torch.no_grad():
+            outputs = self.model(**inputs)
+            embeddings_tensor = outputs.last_hidden_state.mean(dim=1)
+
+            if self._normalize:
+                embeddings_tensor = torch.nn.functional.normalize(embeddings_tensor, p=2, dim=1)
+
+        embeddings = embeddings_tensor.cpu().numpy()
+        
+        # Retornar según input
+        if single_input:
+            return embeddings[0]  # 1D array
+        else:
+            return list(embeddings)  # List of 1D arrays
+    
+    def get_embedding(self, text: str) -> 'np.ndarray':
+        """
+        Método de conveniencia para obtener embedding de un texto.
+        
+        Alias de invoke() para claridad semántica.
+        """
+        return self.invoke(text)
+    
+    def batch_encode(self, texts: List[str]) -> 'np.ndarray':
+        """
+        Procesa batch de textos y retorna matriz 2D.
+        
+        Returns:
+            np.ndarray con shape (len(texts), embedding_dim)
+        """
+        import numpy as np
+        embeddings = self.invoke(texts)
+        return np.array(embeddings)
+
+
+# ============================================================================
 # MODEL REGISTRY - Factory Pattern + YAML Config
 # ============================================================================
 
@@ -761,8 +1031,11 @@ class ModelRegistry:
             wrapper = OllamaModelWrapper(name, config)
         elif backend == "openai_api":
             wrapper = OpenAIAPIWrapper(name, config)
+        elif backend == "embedding":  # NEW v2.14
+            wrapper = EmbeddingModelWrapper(name, config)
         else:
             raise ValueError(f"Unknown backend: {backend}")
+
         
         # Cachear
         cls._models[name] = wrapper

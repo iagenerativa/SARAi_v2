@@ -40,9 +40,9 @@ solar_short:
   backend: "ollama"
   
   # Modelo servido por Ollama (configuración en .env)
-  # Variables: OLLAMA_BASE_URL, SOLAR_MODEL_NAME
+  # Variables: OLLAMA_BASE_URL (opcional)
   api_url: "${OLLAMA_BASE_URL}"
-  model_name: "${SOLAR_MODEL_NAME}"
+  model_name: "hf.co/TheBloke/SOLAR-10.7B-Instruct-v1.0-GGUF:Q4_K_M"
   
   # Configuración de contexto CORTO (respuestas rápidas)
   n_ctx: 512
@@ -65,7 +65,7 @@ solar_long:
   # Modelo servido por Ollama (configuración en .env)
   # MISMO modelo que solar_short, diferente n_ctx
   api_url: "${OLLAMA_BASE_URL}"
-  model_name: "${SOLAR_MODEL_NAME}"
+  model_name: "hf.co/TheBloke/SOLAR-10.7B-Instruct-v1.0-GGUF:Q4_K_M"
   
   # Configuración de contexto LARGO (análisis profundo)
   n_ctx: 2048
@@ -110,6 +110,54 @@ lfm2:
   
   # Política de coexistencia con Qwen3-VL
   allow_unload_for_vision: true  # Puede descargarse temporalmente para visión
+
+viscoder2:
+  name: "VisCoder2-7B (Development Specialist)"
+  type: "text"
+  backend: "ollama"
+  
+  # Modelo especializado en desarrollo de código
+  # Servidor: Ollama (misma IP que SOLAR)
+  api_url: "${OLLAMA_BASE_URL}"
+  model_name: "${VISCODER2_MODEL_NAME}"
+  
+  # Especialización
+  specialty: "code_generation"  # Python, JavaScript, Rust, Go, etc.
+  use_cases:
+    - "Generación de código completo"
+    - "Debugging y análisis de errores"
+    - "Refactoring y optimización"
+    - "Documentación de código"
+    - "Tests unitarios"
+  
+  # Configuración de contexto
+  n_ctx: 4096  # Contexto largo para funciones/clases completas
+  
+  # Parámetros de generación (optimizados para código)
+  temperature: 0.3  # Baja temperatura para código preciso
+  max_tokens: 2048
+  top_p: 0.95
+  top_k: 40
+  repeat_penalty: 1.1
+  timeout: 120
+  
+  # Gestión de memoria
+  load_on_demand: true  # Solo cuando se necesita programación
+  priority: 8  # Alta prioridad (especialista)
+  
+  # System prompt default
+  system_prompt: |
+    You are VisCoder2, an expert programming assistant specialized in:
+    - Writing clean, efficient, and well-documented code
+    - Following best practices and design patterns
+    - Generating comprehensive unit tests
+    - Debugging complex issues with detailed explanations
+    
+    Always provide:
+    1. Working code with proper error handling
+    2. Clear comments explaining logic
+    3. Type hints (Python) or JSDoc (JavaScript)
+    4. Edge case considerations
 
 # ----------------------------------------------------------------------------
 # MODELOS MULTIMODALES (Transformers)
@@ -254,7 +302,9 @@ qwen3_vl:
 # NOTA: Estos aliases mantienen compatibilidad con model_pool.py antiguo
 # Se mapean a los modelos unified nuevos
 
+# Legacy mappings (retrocompatibilidad model_pool → Unified Wrapper)
 legacy_mappings:
+  backend: "config"  # Marca como configuración (no modelo)
   expert: solar_long       # model_pool.get("expert") → get_model("solar_long")
   expert_short: solar_short
   expert_long: solar_long
@@ -262,31 +312,49 @@ legacy_mappings:
   multimodal: qwen3_vl     # Único modelo multimodal (visión)
 
 # ----------------------------------------------------------------------------
-# EMBEDDINGS (No gestionados por Unified Wrapper - usan sistema separado)
+# EMBEDDINGS (v2.14: INTEGRADO en Unified Wrapper)
 # ----------------------------------------------------------------------------
 
 embeddings:
   name: "EmbeddingGemma-300M"
-  source: "google/embeddinggemma-300m-qat-q4_0-unquantized"
+  type: "embedding"  # Tipo específico (no LLM)
+  backend: "embedding"  # Backend especializado
+  
+  # HuggingFace configuration
+  repo_id: "google/embeddinggemma-300m-qat-q4_0-unquantized"
   quantization: "4bit"
-  max_memory_mb: 150
   device: "cpu"
-  load_on_startup: true  # CRÍTICO: siempre disponible
-  cache_dir: "models/cache/embeddings"
+  
+  # Memory management
+  load_on_demand: false  # CRÍTICO: Siempre cargado (alta prioridad)
+  priority: 10  # Alta prioridad (TRM-Router depende)
+  max_memory_mb: 150
+  
+  # Embedding-specific configuration
   embedding_dim: 768  # REAL: EmbeddingGemma produce 768-D
+  cache_dir: "models/cache/embeddings"
 
 # ----------------------------------------------------------------------------
 # TRM CLASSIFIER (No gestionado por Unified Wrapper - sistema separado)
 # ----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
+# TRM CLASSIFIER (v2.14: INTEGRADO en Unified Wrapper)
+# ----------------------------------------------------------------------------
 
 trm_classifier:
   name: "TRM-Dual-7M"
+  type: "classifier"  # Tipo específico (no LLM)
+  backend: "pytorch_checkpoint"  # Backend PyTorch custom
+  
+  # Arquitectura TRM
   architecture: "trm"
   params: 7000000  # 7M
   d_model: 256
   d_latent: 256
   H_cycles: 3
   L_cycles: 4
+  
+  # Gestión de modelo
   checkpoint_path: "models/trm_classifier/checkpoint.pth"
   device: "cpu"
   load_on_startup: true
@@ -296,26 +364,37 @@ trm_classifier:
 # CONFIGURACIÓN GLOBAL DEL SISTEMA
 # ============================================================================
 
-# MCP (Meta Control Plane)
+# MCP (Meta Control Plane) - v2.14: INTEGRADO en Unified Wrapper
 mcp:
+  name: "MCP-Orchestrator"
+  type: "orchestrator"  # Tipo específico
+  backend: "pytorch_checkpoint"  # Backend PyTorch custom
+  device: "cpu"
+  
+  # Configuración MCP
   mode: "rules"  # "rules" o "learned"
   feedback_buffer_size: 100
   alpha_beta_sum_tolerance: 0.01
   checkpoint_path: "models/mcp/checkpoint.pth"
+  
+  # Training config
   training:
     min_samples: 100
     learning_rate: 0.001
     batch_size: 32
 
-# Límites de memoria
+# Límites de memoria (NO es un modelo, es configuración)
 memory:
+  backend: "config"  # Marca como configuración
   total_ram_mb: 16384  # 16GB
   reserved_for_system_mb: 4096  # 4GB reserva
   max_concurrent_llms: 2  # CRÍTICO: Nunca más de 2 LLMs en RAM
   unload_timeout_seconds: 60  # TTL: Descargar modelos no usados
 
 # Rutas del sistema
+# Rutas del sistema (configuración global)
 paths:
+  backend: "config"  # Marca como configuración (no modelo)
   logs_dir: "logs"
   feedback_log: "logs/feedback_log.jsonl"
   models_cache: "models/cache"

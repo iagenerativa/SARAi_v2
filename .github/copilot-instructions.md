@@ -1,5 +1,72 @@
 # SARAi v2.13 - Guía para Agentes de IA (Skills Phoenix + Layer Architecture)
 
+## Novedades v2.14 — Unified Wrapper + VisCoder2 (2025-11-01)
+
+Esta actualización mantiene íntegra la filosofía Phoenix/Layer (v2.12–v2.13) y añade una capa de abstracción unificada para modelos (Unified Wrapper) más la integración de un especialista de programación (VisCoder2-7B) vía Ollama, sin romper compatibilidad ni presupuestos de RAM.
+
+### Qué cambia
+- Unified Wrapper para 8 backends (GGUF/llama-cpp, Transformers, Multimodal, Ollama, OpenAI API, Embeddings, PyTorch checkpoints, Config). Overhead medido ≤5% (validado).
+- Nuevo modelo especializado: VisCoder2-7B (code generation) a través de Ollama, compartiendo la misma instancia que SOLAR.
+- Skill "programming" enruta automáticamente a VisCoder2 (manteniendo el principio de “skills como prompts”, sin cargar más LLMs en RAM fuera de los ya previstos).
+- Documentación y ejemplos añadidos (UNIFIED_WRAPPER_GUIDE.md, examples/unified_wrapper_examples.py) y benchmark reproducible (scripts/benchmark_wrapper_overhead.py).
+
+### KPIs confirmados v2.14
+- Wrapper overhead (Ollama): −3.87% vs llamadas directas (wrapper incluso más rápido por optimizaciones).
+- Embeddings overhead: ~2–3% solo en la primera inferencia; con cache: 36× de aceleración (2.2s → 61ms).
+- Tests: 13/13 del wrapper + tests específicos de VisCoder2 (todo en verde).
+- Compatibilidad: Sin breaking changes; configuración dirigida por YAML + .env.
+
+### Configuración rápida
+- .env (mismo servidor Ollama que SOLAR):
+
+    ```env
+    OLLAMA_BASE_URL=http://192.168.0.251:11434
+    VISCODER2_MODEL_NAME=hf.co/mradermacher/VisCoder2-7B-GGUF:Q4_K_M
+    ```
+
+- `config/models.yaml` (extracto VisCoder2):
+
+    ```yaml
+    viscoder2:
+        backend: "ollama"
+        api_url: "${OLLAMA_BASE_URL}"
+        model_name: "${VISCODER2_MODEL_NAME}"
+        n_ctx: 4096
+        temperature: 0.3
+        specialty: "code_generation"
+        load_on_demand: true
+    ```
+
+- `core/skill_configs.py` (programming skill orientado a precisión):
+
+    ```python
+    PROGRAMMING_SKILL = SkillConfig(
+            name="programming",
+            preferred_model="viscoder2",
+            temperature=0.3,
+            max_tokens=3072,
+            # keywords y long-tail patterns orientados a queries de código
+    )
+    ```
+
+### Validación y benchmark
+- Ejecutar tests del wrapper e integración (resumen real: 13/13 passing en ~15s; VisCoder2 probado con prompts de código simples y compuestos).
+- Benchmark incluido en `scripts/benchmark_wrapper_overhead.py` con metodología de 5 iteraciones + 1 warm-up y comparación directa vs API.
+
+### Compatibilidad y filosofía
+- Sin cambios en los pilares de Skills Phoenix (skills = prompting). VisCoder2 se usa como modelo preferido del skill "programming" sin añadir nuevos LLMs residentes en memoria de forma permanente.
+- Presupuesto RAM ≤12GB se mantiene (Ollama en servidor remoto compartido; local CPU-only sigue GGUF via llama-cpp cuando aplique).
+- Multimodal, MCP, Layers (v2.13) permanecen intactos; esta versión solo añade un plano de orquestación de modelos más ergonómico y auditable.
+
+### Archivos clave añadidos/actualizados (v2.14)
+- `docs/UNIFIED_WRAPPER_GUIDE.md`: guía completa de uso de la abstracción (8 backends + ejemplos).
+- `BENCHMARK_WRAPPER_OVERHEAD_v2.14.md`: metodología y resultados.
+- `examples/unified_wrapper_examples.py`: 15 ejemplos prácticos.
+- `config/models.yaml`: entrada `viscoder2` (backend ollama) y ajustes menores.
+- `.env`: `VISCODER2_MODEL_NAME` apuntando al tag de Ollama.
+
+Si trabajas con esta guía en VS Code, asume v2.14 como una capa incremental sobre lo descrito para v2.12–v2.13: no reemplaza la arquitectura, la instrumenta mejor.
+
 ## 🧠 Principios de Diseño
 
 - **Eficiencia > Velocidad**: Bajo consumo de RAM/CPU, cuantización agresiva
