@@ -65,23 +65,35 @@ class ModelPool:
         self.cache_prefetch: Dict[str, Any] = {}  # {model_name: prefetched_model} NEW v2.3
         self.timestamps: Dict[str, float] = {}   # {model_name: last_access_time}
         
+        # NEW v2.12: Cache separado para skills MoE
+        self.skills_cache: OrderedDict = OrderedDict()  # {skill_name: model_object}
+        self.skills_timestamps: Dict[str, float] = {}   # {skill_name: last_access_time}
+        
         # Configuración de runtime
         runtime_cfg = self.config.get('runtime', {})
         self.backend = runtime_cfg.get('backend', 'cpu')
         self.max_models = runtime_cfg.get('max_concurrent_llms', 2)
+        
+        # NEW v2.12: Máximo de skills simultáneos (3 skills + expert/tiny base)
+        self.max_skills = runtime_cfg.get('max_concurrent_skills', 3)
         
         # Configuración de memoria
         memory_cfg = self.config.get('memory', {})
         self.ttl = memory_cfg.get('model_ttl_seconds', 45)  # Aumentado para prefetch
         self.max_ram_gb = memory_cfg.get('max_ram_gb', 12)
         
-        print(f"[ModelPool v2.3] Inicializado - Backend: {self.backend}, "
-              f"Max modelos: {self.max_models}, TTL: {self.ttl}s")
+        print(f"[ModelPool v2.12] Inicializado - Backend: {self.backend}, "
+              f"Max modelos: {self.max_models}, Max skills: {self.max_skills}, TTL: {self.ttl}s")
     
     def get(self, logical_name: str) -> Any:
         """
         Obtiene modelo del cache o lo carga si no existe
-        logical_name puede ser: 'expert_short', 'expert_long', 'tiny', 'qwen_omni'
+        logical_name puede ser: 'expert_short', 'expert_long', 'tiny', 'qwen_omni', 'qwen3_vl_4b'
+        
+        NEW v2.12: Qwen3-VL-4B para análisis de imagen/video
+        - Se carga bajo demanda cuando input_type in ["image", "video"]
+        - TTL: 60s (auto-descarga rápida para liberar RAM)
+        - Política: Se descarga si RAM libre < 4GB
         
         Args:
             logical_name: Nombre lógico del modelo (incluye variantes de contexto)
@@ -140,12 +152,13 @@ class ModelPool:
         Returns:
             Modelo cargado o None si todos los fallbacks fallan
         """
-        # Definir cadena de fallback
+                # Definir cadena de fallback
         fallback_chain = {
             "expert_long": ["expert_short", "tiny"],
             "expert_short": ["tiny"],
-            "tiny": [],  # Sin fallback, es el mínimo
-            "qwen_omni": []  # Multimodal sin fallback
+            "tiny": [],
+            "qwen_omni": [],  # Audio/multimodal sin fallback
+            "qwen3_vl_4b": []  # NEW v2.12: Visión sin fallback
         }
         
         # Intentar cargar el modelo solicitado
@@ -232,6 +245,136 @@ class ModelPool:
             gc.collect()
             print(f"[ModelPool] {logical_name} liberado manualmente")
     
+    def get_skill(self, skill_name: str) -> Any:
+        """
+        NEW v2.12: Obtiene modelo de skill MoE del cache o lo carga bajo demanda
+        
+        Skills disponibles (según config/sarai.yaml → models.skills):
+        - programming: Desarrollo de software (Python, JS, etc.)
+        - diagnosis: Diagnóstico de sistemas
+        - finance: Análisis financiero
+        - logic: Razonamiento lógico
+        - creative: Generación creativa
+        - reasoning: Razonamiento complejo
+        
+        Gestión de memoria:
+        - Máximo 3 skills simultáneos en RAM (self.max_skills)
+        - LRU: descarga el skill menos usado cuando se alcanza límite
+        - TTL: auto-descarga tras 45s sin uso
+        - Impacto RAM: ~800MB por skill (GGUF IQ4_NL, n_ctx=1024)
+        
+        Args:
+            skill_name: Nombre del skill a cargar
+        
+        Returns:
+            Objeto Llama del skill cargado
+        
+        Raises:
+            ValueError: Si skill_name no existe en configuración
+            RuntimeError: Si falla la carga y no hay fallback
+        
+        Example:
+            ```python
+            pool = get_model_pool()
+            prog_skill = pool.get_skill("programming")
+            response = prog_skill.create_completion(
+                "Escribe una función Python para ordenar lista"
+            )
+            ```
+        """
+        # Limpiar skills expirados
+        self._cleanup_expired_skills()
+        
+        # Si existe en cache, mover al final (LRU) y actualizar timestamp
+        if skill_name in self.skills_cache:
+            self.skills_cache.move_to_end(skill_name)
+            self.skills_timestamps[skill_name] = time.time()
+            print(f"[ModelPool] Skill cache hit: {skill_name}")
+            return self.skills_cache[skill_name]
+        
+        # Si cache de skills lleno, eliminar el menos usado
+        if len(self.skills_cache) >= self.max_skills:
+            self._evict_lru_skill()
+        
+        # Cargar skill desde configuración
+        skills_config = self.config.get('models', {}).get('skills', {})
+        
+        if skill_name not in skills_config:
+            available = list(skills_config.keys())
+            raise ValueError(
+                f"Skill '{skill_name}' no encontrado en config. "
+                f"Skills disponibles: {available}"
+            )
+        
+        skill_cfg = skills_config[skill_name]
+        
+        # Cargar skill (siempre GGUF en CPU por ahora)
+        try:
+            print(f"[ModelPool] Cargando skill '{skill_name}'...")
+            skill_model = self._load_gguf(
+                model_cfg=skill_cfg,
+                context_length=skill_cfg.get('context_length', 1024),
+                prefetch=False
+            )
+            
+            # Guardar en cache
+            self.skills_cache[skill_name] = skill_model
+            self.skills_timestamps[skill_name] = time.time()
+            
+            print(f"✅ Skill '{skill_name}' cargado. Skills activos: {list(self.skills_cache.keys())}")
+            return skill_model
+        
+        except Exception as e:
+            print(f"❌ Error cargando skill '{skill_name}': {e}")
+            raise RuntimeError(f"No se pudo cargar skill '{skill_name}': {e}")
+    
+    def release_skill(self, skill_name: str):
+        """
+        NEW v2.12: Libera skill explícitamente
+        
+        Args:
+            skill_name: Nombre del skill a liberar
+        """
+        if skill_name in self.skills_cache:
+            del self.skills_cache[skill_name]
+            del self.skills_timestamps[skill_name]
+            gc.collect()
+            print(f"[ModelPool] Skill '{skill_name}' liberado manualmente")
+    
+    def _cleanup_expired_skills(self):
+        """
+        NEW v2.12: Elimina skills no usados en más de TTL segundos
+        """
+        now = time.time()
+        to_remove = [
+            name for name, timestamp in self.skills_timestamps.items()
+            if now - timestamp > self.ttl
+        ]
+        
+        for name in to_remove:
+            print(f"[ModelPool] TTL expirado para skill '{name}', descargando...")
+            del self.skills_cache[name]
+            del self.skills_timestamps[name]
+        
+        if to_remove:
+            gc.collect()
+    
+    def _evict_lru_skill(self):
+        """
+        NEW v2.12: Elimina el skill menos recientemente usado (LRU)
+        """
+        if not self.skills_cache:
+            return
+        
+        # OrderedDict mantiene orden de inserción/acceso
+        lru_name = next(iter(self.skills_cache))
+        print(f"[ModelPool] Cache de skills lleno, eliminando LRU: {lru_name}")
+        
+        del self.skills_cache[lru_name]
+        del self.skills_timestamps[lru_name]
+        gc.collect()
+
+    
     def _load_with_backend(self, logical_name: str, prefetch: bool = False) -> Any:
         """
         Carga modelo según backend configurado
@@ -242,7 +385,7 @@ class ModelPool:
         - GPU: usa transformers + 4-bit quantization
         
         Args:
-            logical_name: Nombre lógico (expert_short, expert_long, tiny, qwen_omni)
+            logical_name: Nombre lógico (expert_short, expert_long, tiny, qwen_omni, qwen3_vl_4b)
             prefetch: Si True, carga con mínimos recursos (1 thread)
         
         Returns:
@@ -258,6 +401,10 @@ class ModelPool:
         elif logical_name == "qwen_omni":
             model_cfg_key = "qwen_omni"
             context_length = self.config['models']['qwen_omni'].get('context_length', 2048)
+        elif logical_name == "qwen3_vl_4b":
+            # NEW v2.12: Modelo de visión (imagen/video)
+            model_cfg_key = "qwen3_vl_4b"
+            context_length = self.config['models']['qwen3_vl_4b'].get('context_length', 1024)
         else:
             # Fallback: usar logical_name directamente
             model_cfg_key = logical_name
@@ -426,6 +573,14 @@ class ModelPool:
             "time_since_last_access": {
                 name: round(now - ts, 2)
                 for name, ts in self.timestamps.items()
+            },
+            # NEW v2.12: Stats de skills
+            "skills_loaded": len(self.skills_cache),
+            "max_skills_capacity": self.max_skills,
+            "skills_in_cache": list(self.skills_cache.keys()),
+            "skills_time_since_last_access": {
+                name: round(now - ts, 2)
+                for name, ts in self.skills_timestamps.items()
             }
         }
     

@@ -10,7 +10,7 @@ import torch.nn as nn
 import numpy as np
 import time
 import threading
-from typing import Dict, Tuple, List, Optional
+from typing import Dict, Tuple, List, Optional, Any
 from pathlib import Path
 import yaml
 import os
@@ -452,13 +452,101 @@ def route_to_skills(scores: Dict[str, float], threshold: float = 0.3, top_k: int
     active_skills = {
         skill: score 
         for skill, score in scores.items() 
-        if score > threshold and skill not in ["hard", "soft"]
+        if score > threshold and skill not in ["hard", "soft", "web_query"]
     }
     
     # Top-k por score descendente
     top_skills = sorted(active_skills.items(), key=lambda x: x[1], reverse=True)[:top_k]
     
     return [skill for skill, _ in top_skills]
+
+
+def execute_skills_moe(
+    input_text: str,
+    scores: Dict[str, float],
+    model_pool,
+    threshold: float = 0.3,
+    top_k: int = 3,
+    enable_fallback: bool = True
+) -> Dict[str, str]:
+    """
+    NEW v2.12: Ejecuta skills MoE según routing y retorna respuestas
+    
+    Flujo:
+    1. route_to_skills() determina qué skills activar
+    2. Carga cada skill bajo demanda desde ModelPool
+    3. Ejecuta en paralelo (si múltiples skills) o secuencial
+    4. Fallback a expert_short si todos los skills fallan
+    
+    Args:
+        input_text: Texto de entrada del usuario
+        scores: Dict con scores de TRM-Router
+        model_pool: Instancia de ModelPool para cargar skills
+        threshold: Umbral de activación de skills
+        top_k: Máximo de skills simultáneos
+        enable_fallback: Si True, cae back a expert_short en caso de fallo
+    
+    Returns:
+        Dict {skill_name: response_text} con respuestas de cada skill
+    
+    Example:
+        >>> scores = {'hard': 0.9, 'programming': 0.85, 'diagnosis': 0.7}
+        >>> responses = execute_skills_moe("Debug mi código Python", scores, pool)
+        >>> responses
+        {'programming': '...análisis del código...'}
+    """
+    # Determinar skills a activar
+    active_skills = route_to_skills(scores, threshold, top_k)
+    
+    if not active_skills:
+        print("[MCP-MoE] No hay skills sobre threshold, usando expert por defecto")
+        if enable_fallback:
+            expert = model_pool.get("expert_short")
+            response = expert.create_completion(input_text, max_tokens=512)
+            return {"expert_fallback": response["choices"][0]["text"]}
+        else:
+            return {}
+    
+    print(f"[MCP-MoE] Skills activos: {active_skills}")
+    
+    # Ejecutar cada skill
+    responses = {}
+    
+    for skill_name in active_skills:
+        try:
+            # Cargar skill bajo demanda (LRU gestionará memoria)
+            skill_model = model_pool.get_skill(skill_name)
+            
+            # Ejecutar skill
+            result = skill_model.create_completion(
+                input_text,
+                max_tokens=512,
+                temperature=0.7,
+                stop=["\n\n"]  # Detener en doble salto de línea
+            )
+            
+            response_text = result["choices"][0]["text"].strip()
+            responses[skill_name] = response_text
+            
+            print(f"✅ [MCP-MoE] Skill '{skill_name}' ejecutado ({len(response_text)} chars)")
+        
+        except Exception as e:
+            print(f"⚠️ [MCP-MoE] Error ejecutando skill '{skill_name}': {e}")
+            
+            # Si falla, intentar con el siguiente skill o fallback
+            if enable_fallback and not responses:
+                # Si es el último skill y ninguno ha respondido, usar expert
+                if skill_name == active_skills[-1]:
+                    print("[MCP-MoE] Todos los skills fallaron, usando expert_short fallback")
+                    try:
+                        expert = model_pool.get("expert_short")
+                        result = expert.create_completion(input_text, max_tokens=512)
+                        responses["expert_fallback"] = result["choices"][0]["text"].strip()
+                    except Exception as fallback_error:
+                        print(f"❌ [MCP-MoE] Expert fallback también falló: {fallback_error}")
+                        responses["error"] = "No se pudo generar respuesta"
+    
+    return responses
 
 
 def reload_mcp():
@@ -532,3 +620,65 @@ def get_mcp_weights(scores: Dict[str, float], context: str = "") -> Tuple[float,
 def create_mcp() -> MCP:
     """Factory para crear MCP"""
     return MCP()
+
+
+# ========================================
+# NEW v2.12: Skills as Prompting Configs
+# ========================================
+
+def detect_and_apply_skill(query: str, model_name: str = "solar") -> Optional[Dict[str, Any]]:
+    """
+    Detecta si la query requiere un skill especializado y retorna su configuración.
+    
+    Args:
+        query: Input del usuario
+        model_name: Modelo a usar ("solar" o "lfm2")
+    
+    Returns:
+        Dict con skill_config si se detecta, None en caso contrario
+        {
+            "skill_name": str,
+            "system_prompt": str,
+            "generation_params": dict,
+            "full_prompt": str (system + user query)
+        }
+    """
+    from core.skill_configs import match_skill_by_keywords, list_skills
+    
+    # Detectar skill por keywords
+    skill_config = match_skill_by_keywords(query)
+    
+    if skill_config is None:
+        # No hay skill específico, usar configuración por defecto
+        return None
+    
+    # Verificar si el skill prefiere el modelo actual
+    if skill_config.preferred_model != model_name:
+        print(f"[Skills] Recomendado cambiar de {model_name} a {skill_config.preferred_model} para skill '{skill_config.name}'")
+    
+    # Construir respuesta con configuración completa
+    return {
+        "skill_name": skill_config.name,
+        "system_prompt": skill_config.system_prompt,
+        "generation_params": skill_config.get_generation_params(),
+        "full_prompt": skill_config.build_prompt(query),
+        "description": skill_config.description,
+        "preferred_model": skill_config.preferred_model
+    }
+
+
+def list_available_skills() -> List[str]:
+    """Lista todos los skills disponibles en el sistema"""
+    from core.skill_configs import list_skills
+    return list_skills()
+
+
+def get_skill_info(skill_name: str) -> Optional[Dict[str, Any]]:
+    """Obtiene información detallada de un skill específico"""
+    from core.skill_configs import get_skill
+    
+    skill = get_skill(skill_name)
+    if skill is None:
+        return None
+    
+    return skill.to_dict()

@@ -16,6 +16,18 @@ from pathlib import Path
 from typing import Deque, Dict, Iterable, List, Optional
 
 
+# Singleton global instance
+_tone_memory_instance: Optional["ToneMemoryBuffer"] = None
+
+
+def get_tone_memory_buffer() -> "ToneMemoryBuffer":
+    """Factory function: retorna instancia singleton de ToneMemoryBuffer"""
+    global _tone_memory_instance
+    if _tone_memory_instance is None:
+        _tone_memory_instance = ToneMemoryBuffer()
+    return _tone_memory_instance
+
+
 class ToneMemoryBuffer:
     """Persistent buffer that stores tone analysis events."""
 

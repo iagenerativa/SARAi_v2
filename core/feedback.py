@@ -106,7 +106,7 @@ class FeedbackDetector:
     
     def log_interaction(self, input_text: str, hard: float, soft: float,
                        alpha: float, beta: float, agent_used: str,
-                       response: str, feedback: float = 0.0):
+                       response: str, feedback: float = 0.0, skill_used: str = None):
         """
         Registra interacción completa en feedback_log.jsonl
         
@@ -119,6 +119,7 @@ class FeedbackDetector:
             agent_used: "expert", "tiny", o "multimodal"
             response: Respuesta generada
             feedback: Score de feedback detectado
+            skill_used: v2.12 - Skill aplicado (programming, creative, etc.)
         """
         log_entry = {
             "timestamp": datetime.now().isoformat(),
@@ -128,6 +129,7 @@ class FeedbackDetector:
             "alpha": round(alpha, 3),
             "beta": round(beta, 3),
             "agent_used": agent_used,
+            "skill_used": skill_used,  # v2.12: nuevo campo
             "response": response[:200],  # Truncar para ahorrar espacio
             "feedback": round(feedback, 3)
         }

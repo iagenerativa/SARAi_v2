@@ -9,6 +9,7 @@ runtime:
   cpu_model_format: "gguf"
   gpu_model_format: "4bit"
   max_concurrent_llms: 3  # v2.16: SOLAR (HTTP) + LFM2 + Omni-3B = 1.1GB (audio permanente)
+  max_concurrent_skills: 3  # v2.12: Máximo de skills MoE simultáneos
   n_threads: 6  # os.cpu_count() - 2, deja núcleos libres (NEW v2.3)
   strategy: "hybrid_http_gguf"  # v2.16: HTTP para grandes, GGUF para pequeños
 
@@ -210,6 +211,88 @@ models:
     # Q6_K: Mayor precisión que Q4 (+0.5-1.0pp en benchmarks) con solo +500MB RAM
     temperature: 0.7
     max_tokens: 1024
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # NEW v2.12: MoE Skills - Modelos especializados bajo demanda
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Skills Tier: Expertise especializada (carga bajo demanda)
+  # - Máximo 3 skills simultáneos en RAM (config por LRU)
+  # - Impacto RAM: ~800MB por skill (GGUF IQ4_NL, n_ctx=1024)
+  # - TTL: 45 segundos sin uso → auto-descarga
+  # - Fallback: Si skill falla, cae back a expert_short
+  # ═══════════════════════════════════════════════════════════════════════════
+  skills:
+    # Skill 1: Programming (desarrollo de software)
+    programming:
+      name: "CodeLlama-7B-Instruct"
+      repo_id: "TheBloke/CodeLlama-7B-Instruct-GGUF"
+      gguf_file: "codellama-7b-instruct.Q4_K_M.gguf"
+      max_memory_mb: 800
+      cache_dir: "./models/cache/skills/programming"
+      context_length: 1024
+      temperature: 0.2  # Baja para código preciso
+      max_tokens: 512
+      domains: ["código", "programación", "python", "javascript", "debugging", "función", "clase", "algoritmo"]
+    
+    # Skill 2: Diagnosis (diagnóstico de sistemas)
+    diagnosis:
+      name: "Mistral-7B-Instruct"
+      repo_id: "TheBloke/Mistral-7B-Instruct-v0.2-GGUF"
+      gguf_file: "mistral-7b-instruct-v0.2.Q4_K_M.gguf"
+      max_memory_mb: 800
+      cache_dir: "./models/cache/skills/diagnosis"
+      context_length: 1024
+      temperature: 0.3  # Baja para diagnóstico preciso
+      max_tokens: 512
+      domains: ["diagnóstico", "error", "logs", "sistema", "servidor", "fallo", "problema", "debug"]
+    
+    # Skill 3: Finance (análisis financiero)
+    finance:
+      name: "FinGPT-7B"
+      repo_id: "TheBloke/FinGPT-Instruct-7B-GGUF"
+      gguf_file: "fingpt-instruct-7b.Q4_K_M.gguf"
+      max_memory_mb: 800
+      cache_dir: "./models/cache/skills/finance"
+      context_length: 1024
+      temperature: 0.4
+      max_tokens: 512
+      domains: ["finanzas", "inversión", "acciones", "mercado", "presupuesto", "roi", "análisis financiero"]
+    
+    # Skill 4: Logic (razonamiento lógico)
+    logic:
+      name: "Mistral-7B-Instruct"
+      repo_id: "TheBloke/Mistral-7B-Instruct-v0.2-GGUF"
+      gguf_file: "mistral-7b-instruct-v0.2.Q4_K_M.gguf"
+      max_memory_mb: 800
+      cache_dir: "./models/cache/skills/logic"
+      context_length: 1024
+      temperature: 0.3
+      max_tokens: 512
+      domains: ["lógica", "razonamiento", "deducción", "prueba", "teorema", "silogismo", "falacia"]
+    
+    # Skill 5: Creative (generación creativa)
+    creative:
+      name: "Nous-Hermes-2-Mistral-7B"
+      repo_id: "TheBloke/Nous-Hermes-2-Mistral-7B-DPO-GGUF"
+      gguf_file: "nous-hermes-2-mistral-7b-dpo.Q4_K_M.gguf"
+      max_memory_mb: 800
+      cache_dir: "./models/cache/skills/creative"
+      context_length: 1024
+      temperature: 0.9  # Alta para creatividad
+      max_tokens: 512
+      domains: ["historia", "cuento", "poema", "creativo", "narrativa", "personaje", "diálogo"]
+    
+    # Skill 6: Reasoning (razonamiento complejo)
+    reasoning:
+      name: "OpenHermes-2.5-Mistral-7B"
+      repo_id: "TheBloke/OpenHermes-2.5-Mistral-7B-GGUF"
+      gguf_file: "openhermes-2.5-mistral-7b.Q4_K_M.gguf"
+      max_memory_mb: 800
+      cache_dir: "./models/cache/skills/reasoning"
+      context_length: 1024
+      temperature: 0.5
+      max_tokens: 512
+      domains: ["razonamiento", "análisis", "paso a paso", "cadena de pensamiento", "explicar", "desglosar"]
 
 # NEW v2.16: Configuración de Ollama HTTP
 ollama:

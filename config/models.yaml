@@ -1,102 +1,415 @@
-# Configuración de modelos para SARAi v2
-# Hardware: CPU-only, 16GB RAM
-# Todos los modelos usan cuantización 4-bit para minimizar uso de RAM
+# ============================================================================
+# SARAi v2.14 - Unified Models Configuration
+# ============================================================================
+#
+# Este archivo define TODOS los modelos disponibles en SARAi usando
+# la arquitectura Unified Model Wrapper basada en LangChain.
+#
+# FILOSOFÍA v2.14:
+#   "SARAi no debe conocer sus modelos. Solo debe invocar capacidades.
+#    YAML define, LangChain orquesta, el wrapper abstrae.
+#    Cuando el hardware mejore, solo cambiamos configuración, nunca código."
+#
+# CÓMO AGREGAR UN MODELO NUEVO:
+#   1. Añadir entrada en este YAML
+#   2. Reiniciar SARAi
+#   3. Usar con: get_model("nombre_modelo")
+#   NO se requiere modificar código Python.
+#
+# BACKENDS SOPORTADOS:
+#   - gguf: llama-cpp-python (CPU optimizado, Q4_K_M)
+#   - transformers: HuggingFace 4-bit (GPU cuando disponible)
+#   - multimodal: Qwen3-VL, Qwen2.5-Omni (vision + audio)
+#   - ollama: API local (futuro)
+#   - openai_api: Cloud APIs - GPT-4, Claude, Gemini (futuro)
+#
+# HARDWARE ACTUAL:
+#   - CPU-only, 16GB RAM
+#   - Max 2 LLMs concurrentes
+#   - Cuantización Q4_K_M obligatoria
+#
+# ============================================================================
 
-models:
-  # Expert Tier: Razonamiento técnico profundo
-  expert:
-    name: "SOLAR-10.7B-Instruct-v1.0"
-    source: "upstage/SOLAR-10.7B-Instruct-v1.0"
-    # GGUF: hf.co/solxxcero/SOLAR-10.7B-Instruct-v1.0-Q4_K_M-GGUF:Q4_K_M
-    gguf_repo: "solxxcero/SOLAR-10.7B-Instruct-v1.0-Q4_K_M-GGUF"
-    gguf_file: "solar-10.7b-instruct-v1.0.Q4_K_M.gguf"
-    quantization: "Q4_K_M"
-    max_memory_mb: 6144  # ~6GB (n_ctx=2048)
-    device: "cpu"
-    load_on_startup: false  # Cargar bajo demanda
-    cache_dir: "./models/cache/solar"
-    context_length: 4096
-    temperature: 0.7
-    top_p: 0.9
-    
-  # Tiny Tier: Respuestas rápidas y soft-skills
-  tiny:
-    name: "LFM2-1.2B"
-    source: "LiquidAI/LFM2-1.2B"
-    # GGUF: hf.co/LiquidAI/LFM2-1.2B-GGUF:Q4_K_M
-    gguf_repo: "LiquidAI/LFM2-1.2B-GGUF"
-    gguf_file: "lfm2-1.2b.Q4_K_M.gguf"
-    quantization: "Q4_K_M"
-    max_memory_mb: 700
-    device: "cpu"
-    load_on_startup: false  # Cargar bajo demanda
-    cache_dir: "./models/cache/lfm2"
-    context_length: 2048
-    temperature: 0.8
-    top_p: 0.95
-    
-  # Embeddings: Siempre en memoria
-  embeddings:
-    name: "EmbeddingGemma-300M"
-    source: "google/embeddinggemma-300m-qat-q4_0-unquantized"
-    quantization: "4bit"
-    max_memory_mb: 150
-    device: "cpu"
-    load_on_startup: true  # CRÍTICO: siempre disponible
-    cache_dir: "./models/cache/embeddings"
-    embedding_dim: 768  # REAL: EmbeddingGemma produce 768-D, no 2048-D
-    
-  # Multimodal: Audio y visión (carga condicional)
-  multimodal:
-    name: "Qwen2.5-Omni-7B"
-    source: "Qwen/Qwen2.5-Omni-7B"
-    quantization: "4bit"
-    max_memory_mb: 4096
-    device: "cpu"
-    load_on_startup: false  # Solo si se detecta input multimodal
-    cache_dir: "./models/cache/qwen"
-    supports:
-      - audio
-      - vision
-      - text
-    context_length: 8192
-    
-  # TRM-Classifier: Clasificador dual hard/soft
-  trm_classifier:
-    name: "TRM-Dual-7M"
-    architecture: "trm"
-    params: 7000000  # 7M
-    d_model: 256
-    d_latent: 256
-    H_cycles: 3  # Ciclos de alto nivel
-    L_cycles: 4  # Iteraciones por ciclo
-    checkpoint_path: "./models/trm_classifier/checkpoint.pth"
-    device: "cpu"
-    load_on_startup: true  # Siempre en memoria
-    max_memory_mb: 50
+# ----------------------------------------------------------------------------
+# MODELOS ACTUALES - TEXTO (CPU GGUF)
+# ----------------------------------------------------------------------------
 
-# Configuración del MCP (Meta Control Plane)
+solar_short:
+  name: "UNA-SOLAR-10.7B-Instruct (Short Context)"
+  type: "text"
+  backend: "ollama"
+  
+  # Modelo servido por Ollama (configuración en .env)
+  # Variables: OLLAMA_BASE_URL, SOLAR_MODEL_NAME
+  api_url: "${OLLAMA_BASE_URL}"
+  model_name: "${SOLAR_MODEL_NAME}"
+  
+  # Configuración de contexto CORTO (respuestas rápidas)
+  n_ctx: 512
+  
+  # Parámetros de generación
+  temperature: 0.7
+  max_tokens: 512
+  top_p: 0.9
+  
+  # Gestión de memoria
+  load_on_demand: true  # Cargar bajo demanda (servidor externo)
+  priority: 9  # Prioridad media-alta
+  max_memory_mb: 0  # Sin RAM local (servidor Ollama)
+
+solar_long:
+  name: "UNA-SOLAR-10.7B-Instruct (Long Context)"
+  type: "text"
+  backend: "ollama"
+  
+  # Modelo servido por Ollama (configuración en .env)
+  # MISMO modelo que solar_short, diferente n_ctx
+  api_url: "${OLLAMA_BASE_URL}"
+  model_name: "${SOLAR_MODEL_NAME}"
+  
+  # Configuración de contexto LARGO (análisis profundo)
+  n_ctx: 2048
+  
+  # Parámetros de generación
+  temperature: 0.7
+  max_tokens: 1024
+  top_p: 0.9
+  
+  # Gestión de memoria
+  load_on_demand: true  # Cargar bajo demanda
+  priority: 8  # Prioridad media
+  max_memory_mb: 0  # Sin RAM local
+
+lfm2:
+  name: "LiquidAI-LFM2-1.2B"
+  type: "text"
+  backend: "gguf"
+  
+  # Modelo tiny para respuestas rápidas y soft-skills
+  # Repo: LiquidAI/LFM2-1.2B-GGUF
+  # CRÍTICO: Verificar que este archivo existe en local
+  model_path: "models/cache/lfm2/lfm2-1.2b.Q4_K_M.gguf"
+  
+  # Configuración
+  n_ctx: 2048
+  n_threads: 6
+  use_mmap: true
+  use_mlock: false
+  
+  # Parámetros (más creativo para empatía)
+  temperature: 0.8
+  max_tokens: 512
+  top_p: 0.95
+  
+  # Gestión de memoria
+  # IMPORTANTE: Siempre en memoria por defecto (prioridad máxima)
+  # EXCEPCIÓN: Se descarga SOLO si Qwen3-VL está activo y hay presión de RAM
+  load_on_demand: false  # Siempre cargado por defecto
+  priority: 10  # Prioridad MÁXIMA (solo cede ante Qwen3-VL si es necesario)
+  max_memory_mb: 700
+  
+  # Política de coexistencia con Qwen3-VL
+  allow_unload_for_vision: true  # Puede descargarse temporalmente para visión
+
+# ----------------------------------------------------------------------------
+# MODELOS MULTIMODALES (Transformers)
+# ----------------------------------------------------------------------------
+
+qwen3_vl:
+  name: "Qwen3-VL-4B-Instruct"
+  type: "multimodal"
+  backend: "multimodal"
+  
+  # HuggingFace repo
+  repo_id: "Qwen/Qwen3-VL-4B-Instruct"
+  
+  # Capacidades
+  supports_images: true
+  supports_video: true
+  supports_audio: false
+  
+  # Configuración
+  device_map: "auto"
+  load_in_4bit: false  # Modelo ya optimizado
+  trust_remote_code: true
+  
+  # Parámetros
+  temperature: 0.7
+  max_tokens: 1024
+  
+  # Gestión de memoria
+  load_on_demand: true  # Solo cuando se necesita visión
+  priority: 7  # Prioridad ALTA para tareas de visión
+  max_memory_mb: 4096
+  cache_dir: "models/cache/qwen"
+  
+  # Política de coexistencia con LFM2
+  # Cuando se carga Qwen3-VL y hay presión de RAM:
+  # - Puede solicitar descarga temporal de LFM2
+  # - LFM2 se recarga automáticamente después de terminar tarea de visión
+  can_evict_lfm2: true
+
+# ----------------------------------------------------------------------------
+# MODELOS FUTUROS (Descomentados cuando tengas recursos)
+# ----------------------------------------------------------------------------
+
+# GPU Migration: Descomentar cuando tengas GPU disponible
+# solar_gpu:
+#   name: "SOLAR-10.7B-Instruct (GPU Transformers)"
+#   type: "text"
+#   backend: "transformers"
+#   
+#   repo_id: "upstage/SOLAR-10.7B-Instruct-v1.0"
+#   
+#   load_in_4bit: true
+#   device_map: "auto"
+#   
+#   temperature: 0.7
+#   max_tokens: 1024
+#   
+#   load_on_demand: true
+#   priority: 10
+
+# OpenAI GPT-4 Vision: Descomentar cuando tengas API key
+# gpt4_vision:
+#   name: "GPT-4 Vision Preview"
+#   type: "multimodal"
+#   backend: "openai_api"
+#   
+#   # API Configuration
+#   api_key: "${OPENAI_API_KEY}"  # Variable de entorno
+#   api_url: "https://api.openai.com/v1"
+#   model_name: "gpt-4-vision-preview"
+#   
+#   # Capacidades
+#   supports_images: true
+#   
+#   # Parámetros
+#   temperature: 0.7
+#   max_tokens: 2048
+#   
+#   load_on_demand: true
+#   priority: 5
+
+# Anthropic Claude Opus: Descomentar cuando tengas API key
+# claude_opus:
+#   name: "Claude 3 Opus"
+#   type: "text"
+#   backend: "openai_api"
+#   
+#   # API Configuration (OpenAI-compatible proxy)
+#   api_key: "${ANTHROPIC_API_KEY}"
+#   api_url: "https://api.anthropic.com/v1"
+#   model_name: "claude-3-opus-20240229"
+#   
+#   # Parámetros
+#   temperature: 0.7
+#   max_tokens: 4096
+#   
+#   load_on_demand: true
+#   priority: 4
+
+# Google Gemini Pro Vision: Descomentar cuando tengas API key
+# gemini_vision:
+#   name: "Gemini Pro Vision"
+#   type: "multimodal"
+#   backend: "openai_api"
+#   
+#   # API Configuration
+#   api_key: "${GOOGLE_API_KEY}"
+#   api_url: "https://generativelanguage.googleapis.com/v1"
+#   model_name: "gemini-pro-vision"
+#   
+#   # Capacidades
+#   supports_images: true
+#   supports_video: true
+#   
+#   # Parámetros
+#   temperature: 0.7
+#   max_tokens: 2048
+#   
+#   load_on_demand: true
+#   priority: 3
+
+# Ollama Llama3 70B: Descomentar cuando tengas Ollama corriendo
+# ollama_llama3:
+#   name: "Llama 3 70B (Ollama)"
+#   type: "text"
+#   backend: "ollama"
+#   
+#   # Ollama Configuration
+#   api_url: "http://localhost:11434"
+#   model_name: "llama3:70b"
+#   
+#   # Parámetros
+#   temperature: 0.7
+#   
+#   load_on_demand: true
+#   priority: 2
+
+# ----------------------------------------------------------------------------
+# MODELOS LEGACY (Compatibilidad con código anterior)
+# ----------------------------------------------------------------------------
+
+# NOTA: Estos aliases mantienen compatibilidad con model_pool.py antiguo
+# Se mapean a los modelos unified nuevos
+
+legacy_mappings:
+  expert: solar_long       # model_pool.get("expert") → get_model("solar_long")
+  expert_short: solar_short
+  expert_long: solar_long
+  tiny: lfm2
+  multimodal: qwen3_vl     # Único modelo multimodal (visión)
+
+# ----------------------------------------------------------------------------
+# EMBEDDINGS (No gestionados por Unified Wrapper - usan sistema separado)
+# ----------------------------------------------------------------------------
+
+embeddings:
+  name: "EmbeddingGemma-300M"
+  source: "google/embeddinggemma-300m-qat-q4_0-unquantized"
+  quantization: "4bit"
+  max_memory_mb: 150
+  device: "cpu"
+  load_on_startup: true  # CRÍTICO: siempre disponible
+  cache_dir: "models/cache/embeddings"
+  embedding_dim: 768  # REAL: EmbeddingGemma produce 768-D
+
+# ----------------------------------------------------------------------------
+# TRM CLASSIFIER (No gestionado por Unified Wrapper - sistema separado)
+# ----------------------------------------------------------------------------
+
+trm_classifier:
+  name: "TRM-Dual-7M"
+  architecture: "trm"
+  params: 7000000  # 7M
+  d_model: 256
+  d_latent: 256
+  H_cycles: 3
+  L_cycles: 4
+  checkpoint_path: "models/trm_classifier/checkpoint.pth"
+  device: "cpu"
+  load_on_startup: true
+  max_memory_mb: 50
+
+# ============================================================================
+# CONFIGURACIÓN GLOBAL DEL SISTEMA
+# ============================================================================
+
+# MCP (Meta Control Plane)
 mcp:
-  mode: "rules"  # "rules" o "learned" (después de 100 interacciones)
+  mode: "rules"  # "rules" o "learned"
   feedback_buffer_size: 100
   alpha_beta_sum_tolerance: 0.01
-  checkpoint_path: "./models/mcp/checkpoint.pth"
+  checkpoint_path: "models/mcp/checkpoint.pth"
   training:
     min_samples: 100
     learning_rate: 0.001
     batch_size: 32
-    
+
 # Límites de memoria
 memory:
   total_ram_mb: 16384  # 16GB
   reserved_for_system_mb: 4096  # 4GB reserva
-  max_concurrent_llms: 2  # Nunca más de 2 LLMs en RAM
-  unload_timeout_seconds: 60  # Descargar modelos no usados después de 60s
+  max_concurrent_llms: 2  # CRÍTICO: Nunca más de 2 LLMs en RAM
+  unload_timeout_seconds: 60  # TTL: Descargar modelos no usados
 
-# Rutas
+# Rutas del sistema
 paths:
-  logs_dir: "./logs"
-  feedback_log: "./logs/feedback_log.jsonl"
-  models_cache: "./models/cache"
-  checkpoints: "./models/checkpoints"
-  datasets: "./data"
+  logs_dir: "logs"
+  feedback_log: "logs/feedback_log.jsonl"
+  models_cache: "models/cache"
+  checkpoints: "models/checkpoints"
+  datasets: "data"
+
+# ============================================================================
+# NOTAS DE USO
+# ============================================================================
+#
+# 1. PRIORIDAD Y GESTIÓN DE MEMORIA:
+#    - LFM2 (priority=10): SIEMPRE en memoria (modelo base para todo)
+#      * EXCEPCIÓN: Se descarga temporalmente si Qwen3-VL necesita RAM
+#      * Se RECARGA automáticamente después de tarea de visión
+#    
+#    - SOLAR (priority=9/8): Servidor Ollama externo (sin RAM local)
+#      * solar_short: Respuestas rápidas (n_ctx=512)
+#      * solar_long: Análisis profundo (n_ctx=2048)
+#    
+#    - Qwen3-VL (priority=7): Solo para tareas de VISIÓN
+#      * Puede solicitar descarga temporal de LFM2
+#      * Automáticamente descargado después de uso
+#
+# 2. POLÍTICAS DE COEXISTENCIA:
+#    Estados normales:
+#    a) Texto: LFM2 en memoria + SOLAR (Ollama remoto)
+#    b) Visión: Qwen3-VL carga → LFM2 descarga temporal → Qwen3-VL descarga → LFM2 recarga
+#    
+#    RAM máxima utilizada:
+#    - Modo texto: ~700MB (solo LFM2)
+#    - Modo visión: ~4GB (solo Qwen3-VL temporalmente)
+#
+# 3. LOAD_ON_DEMAND:
+#    - false: Modelo se carga al iniciar SARAi (siempre disponible)
+#    - true: Modelo se carga solo cuando se usa (ahorra RAM)
+#
+# 4. BACKEND:
+#    - gguf: CPU con llama-cpp-python (LFM2)
+#    - ollama: API servidor externo (SOLAR)
+#    - multimodal: Vision con Transformers (Qwen3-VL)
+#    - transformers: GPU con HuggingFace (futuro)
+#    - openai_api: Cloud APIs (futuro)
+#
+# 5. AGREGAR MODELO NUEVO:
+#    Ejemplo para agregar GPT-4:
+#    ```yaml
+#    gpt4_turbo:
+#      name: "GPT-4 Turbo"
+#      type: "text"
+#      backend: "openai_api"
+#      api_key: "${OPENAI_API_KEY}"
+#      api_url: "https://api.openai.com/v1"
+#      model_name: "gpt-4-turbo-preview"
+#      temperature: 0.7
+#      max_tokens: 4096
+#      load_on_demand: true
+#      priority: 5
+#    ```
+#    Luego en código:
+#    ```python
+#    from core.unified_model_wrapper import get_model
+#    gpt4 = get_model("gpt4_turbo")
+#    response = gpt4.invoke("pregunta")
+#    ```
+#
+# 6. CAMBIAR BACKEND:
+#    Para migrar SOLAR a local cuando descargues el modelo:
+#    - Cambiar: backend: "ollama" → backend: "gguf"
+#    - Cambiar: api_url + model_name → model_path
+#    - Añadir: n_threads, use_mmap, use_mlock
+#    - NO tocar código Python
+#
+# 7. VARIABLES DE ENTORNO:
+#    - Formato: ${VARIABLE_NAME}
+#    - Se resuelven automáticamente al cargar
+#    - Útil para API keys seguras y configuración dinámica
+#    - Ejemplos en .env:
+#      * OLLAMA_BASE_URL=http://192.168.0.251:11434  (desarrollo)
+#      * OLLAMA_BASE_URL=http://localhost:11434      (producción local)
+#      * OLLAMA_BASE_URL=http://sarai-ollama:11434   (producción Docker)
+#      * SOLAR_MODEL_NAME=hf.co/fblgit/UNA-SOLAR-10.7B-Instruct-v1.0:Q5_K_M
+#      * OPENAI_API_KEY=sk-...
+#
+# 8. LEGACY MAPPINGS:
+#    - Mantienen compatibilidad con código antiguo
+#    - model_pool.get("expert") → ModelRegistry.get_model("solar_long")
+#    - Permite migración gradual
+#
+# 9. VERIFICACIÓN DE MODELOS LOCALES:
+#    Antes de usar GGUF locales, verificar que existen:
+#    - LFM2: models/cache/lfm2/lfm2-1.2b.Q4_K_M.gguf
+#    - Embeddings: models/cache/embeddings/...
+#    
+#    Si un modelo local no existe, el sistema fallará al cargarlo.
+#    SOLAR usa Ollama remoto, no requiere archivo local.
+#
+# ============================================================================

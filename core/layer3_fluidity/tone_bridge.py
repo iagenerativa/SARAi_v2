@@ -7,6 +7,19 @@ fillers, modulation engines or other high level orchestrators.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Optional
+
+
+# Singleton global instance
+_tone_bridge_instance: Optional["ToneStyleBridge"] = None
+
+
+def get_tone_bridge(smoothing: float = 0.25) -> "ToneStyleBridge":
+    """Factory function: retorna instancia singleton de ToneStyleBridge"""
+    global _tone_bridge_instance
+    if _tone_bridge_instance is None:
+        _tone_bridge_instance = ToneStyleBridge(smoothing=smoothing)
+    return _tone_bridge_instance
 
 
 @dataclass

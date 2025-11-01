@@ -22,7 +22,7 @@ from agents.qwen3_vl import get_qwen3_vl_agent  # NEW v2.16.1: Vision specialist
 
 
 class State(TypedDict):
-    """Estado compartido en el flujo LangGraph (v2.16.1 con Vision)"""
+    """Estado compartido en el flujo LangGraph (v2.16.1 con Vision + v2.12 Skills + v2.13 Layers)"""
     # Input original
     input: str
     
@@ -39,6 +39,13 @@ class State(TypedDict):
     video_path: Optional[str]
     fps: Optional[float]             # Para video analysis
     
+    # Layer1 emotion (v2.13)
+    emotion: Optional[dict]          # Resultado de detect_emotion() con label, valence, arousal
+    
+    # Layer3 tone (v2.13)
+    tone_style: Optional[str]        # "energetic_positive" | "soft_support" | etc.
+    filler_hint: Optional[str]       # "match_energy_positive" | "soothing_fillers" | etc.
+    
     # Omni-Loop fields (v2.16)
     enable_reflection: bool          # Activar auto-corrección
     omni_loop_iterations: Optional[list]  # Historia de iteraciones
@@ -52,6 +59,9 @@ class State(TypedDict):
     # MCP weights
     alpha: float
     beta: float
+    
+    # Skills (v2.12)
+    skill_used: Optional[str]        # Skill aplicado: "programming" | "creative" | etc.
     
     # Execution
     agent_used: Literal["expert", "tiny", "multimodal", "rag", "omni", "vision", "omni_loop"]  # v2.16: + omni_loop
@@ -190,8 +200,19 @@ class SARAiOrchestrator:
         return workflow
     
     def _classify_intent(self, state: State) -> dict:
-        """Nodo: Clasificar hard/soft/web_query intent (v2.10)"""
+        """Nodo: Clasificar hard/soft/web_query intent (v2.10 + v2.13 Layer1 emotion)"""
         user_input = state["input"]
+        
+        # NEW v2.13: Detectar emoción si es audio (Layer1)
+        if state.get("input_type") == "audio" and state.get("audio_input"):
+            from core.layer1_io.audio_emotion_lite import detect_emotion
+            
+            emotion_result = detect_emotion(state["audio_input"])
+            state["emotion"] = emotion_result
+            
+            print(f"🎭 Emoción detectada: {emotion_result['label']} "
+                  f"(valence={emotion_result['valence']:.2f}, "
+                  f"arousal={emotion_result['arousal']:.2f})")
         
         # Clasificar según tipo de TRM
         if isinstance(self.trm_classifier, TRMClassifierSimulated):
@@ -212,7 +233,39 @@ class SARAiOrchestrator:
         }
     
     def _compute_weights(self, state: State) -> dict:
-        """Nodo: Calcular pesos α/β con MCP"""
+        """Nodo: Calcular pesos α/β con MCP + Layer2 tone memory (v2.13)"""
+        # NEW v2.13: Guardar emoción en Layer2 (memory)
+        if state.get("emotion"):
+            from core.layer2_memory.tone_memory import get_tone_memory_buffer
+            
+            tone_memory = get_tone_memory_buffer()
+            tone_memory.append({
+                "label": state["emotion"]["label"],
+                "valence": state["emotion"]["valence"],
+                "arousal": state["emotion"]["arousal"]
+            })
+            
+            # Obtener historial de tono reciente
+            tone_history = tone_memory.recent(limit=5)
+            
+            # Ajustar β (soft) si hay tendencia negativa
+            if len(tone_history) >= 3:
+                avg_valence = sum(t["valence"] for t in tone_history) / len(tone_history)
+                
+                if avg_valence < 0.3:
+                    print("😔 Usuario con tono negativo persistente → aumentar empatía")
+                    # Calcular α/β inicial
+                    alpha, beta = self.mcp.compute_weights(state["hard"], state["soft"])
+                    # Aumentar β (empatía) hasta máximo 0.15
+                    beta_boost = min(0.15, (0.3 - avg_valence))
+                    beta = min(beta + beta_boost, 1.0)
+                    alpha = 1.0 - beta
+                    
+                    print(f"⚖️  Pesos ajustados por tono: α={alpha:.2f}, β={beta:.2f} (+{beta_boost:.2f} empatía)")
+                    
+                    return {"alpha": alpha, "beta": beta}
+        
+        # Cálculo estándar sin ajuste de tono
         alpha, beta = self.mcp.compute_weights(state["hard"], state["soft"])
         
         print(f"⚖️  Pesos: α={alpha:.2f} (hard), β={beta:.2f} (soft)")
@@ -279,14 +332,37 @@ class SARAiOrchestrator:
         return "tiny"
     
     def _generate_expert(self, state: State) -> dict:
-        """Nodo: Generar respuesta con expert agent"""
+        """Nodo: Generar respuesta con expert agent + skill detection (v2.12)"""
         print("🔬 Usando Expert Agent (SOLAR-10.7B)...")
         
+        # v2.12: Detectar skill aplicable
+        from core.mcp import detect_and_apply_skill
+        
+        skill_config = detect_and_apply_skill(state["input"], "solar")
+        skill_used = None
+        
         try:
-            response = self.expert_agent.generate(
-                state["input"],
-                max_new_tokens=512
-            )
+            if skill_config:
+                # Skill detectado: usar prompt especializado
+                skill_used = skill_config["skill_name"]
+                prompt = skill_config["full_prompt"]
+                params = skill_config["generation_params"]
+                
+                print(f"🎯 Skill detectado: {skill_used} (temp={params['temperature']})")
+                
+                response = self.expert_agent.generate(
+                    prompt,
+                    max_new_tokens=params["max_tokens"],
+                    temperature=params["temperature"],
+                    top_p=params["top_p"]
+                )
+            else:
+                # Sin skill: prompt estándar
+                print("📝 Sin skill específico, usando prompt estándar")
+                response = self.expert_agent.generate(
+                    state["input"],
+                    max_new_tokens=512
+                )
         except Exception as e:
             print(f"⚠️  Error en expert agent: {e}")
             print("🔄 Fallback a tiny agent...")
@@ -298,22 +374,49 @@ class SARAiOrchestrator:
         
         return {
             "agent_used": "expert",
-            "response": response
+            "response": response,
+            "skill_used": skill_used  # v2.12: trackear skill aplicado
         }
     
     def _generate_tiny(self, state: State) -> dict:
-        """Nodo: Generar respuesta con tiny agent"""
+        """Nodo: Generar respuesta con tiny agent + skill detection (v2.12)"""
         print("🏃 Usando Tiny Agent (LFM2-1.2B)...")
         
-        response = self.tiny_agent.generate(
-            state["input"],
-            soft_score=state["soft"],
-            max_new_tokens=256
-        )
+        # v2.12: Detectar skill aplicable (preferencia por LFM2)
+        from core.mcp import detect_and_apply_skill
+        
+        skill_config = detect_and_apply_skill(state["input"], "lfm2")
+        skill_used = None
+        
+        if skill_config:
+            # Skill detectado: usar prompt especializado
+            skill_used = skill_config["skill_name"]
+            prompt = skill_config["full_prompt"]
+            params = skill_config["generation_params"]
+            
+            print(f"🎯 Skill detectado: {skill_used} (temp={params['temperature']})")
+            
+            # NOTA: Creative skill prefiere LFM2 por su alta temperatura (0.9)
+            response = self.tiny_agent.generate(
+                prompt,
+                soft_score=state["soft"],
+                max_new_tokens=params["max_tokens"],
+                temperature=params["temperature"],
+                top_p=params["top_p"]
+            )
+        else:
+            # Sin skill: prompt estándar
+            print("📝 Sin skill específico, usando prompt estándar")
+            response = self.tiny_agent.generate(
+                state["input"],
+                soft_score=state["soft"],
+                max_new_tokens=256
+            )
         
         return {
             "agent_used": "tiny",
-            "response": response
+            "response": response,
+            "skill_used": skill_used  # v2.12: trackear skill aplicado
         }
     
     def _execute_omni_loop(self, state: State) -> dict:
@@ -493,7 +596,8 @@ class SARAiOrchestrator:
             beta=state["beta"],
             agent_used=state["agent_used"],
             response=state["response"],
-            feedback=feedback
+            feedback=feedback,
+            skill_used=state.get("skill_used")  # v2.12: añadir skill usado
         )
         
         # Agregar feedback al MCP
@@ -640,29 +744,54 @@ class SARAiOrchestrator:
     
     def _enhance_with_emotion(self, state: State) -> dict:
         """
-        Nodo: Modula la respuesta según la emoción detectada (M3.2 Fase 2)
+        Nodo: Modula la respuesta según la emoción detectada (M3.2 Fase 2 + v2.13 Layer3)
         
         Pipeline:
         1. Si detected_emotion existe → aplicar modulación
-        2. Usar emotion_modulator para ajustar tono
-        3. Retornar respuesta modulada
+        2. NEW v2.13: Usar ToneBridge (Layer3) para smoothing de transiciones
+        3. Usar emotion_modulator para ajustar tono
+        4. Retornar respuesta modulada
         """
         # Si no hay emoción detectada, pasar sin modificar
-        if not state.get("detected_emotion"):
+        if not state.get("detected_emotion") and not state.get("emotion"):
             return {"response": state["response"]}
         
         try:
+            # NEW v2.13: Layer3 - Tone Bridge para smoothing
+            if state.get("emotion"):
+                from core.layer3_fluidity.tone_bridge import get_tone_bridge
+                
+                tone_bridge = get_tone_bridge()
+                
+                # Actualizar bridge con emoción actual
+                profile = tone_bridge.update(
+                    label=state["emotion"]["label"],
+                    valence=state["emotion"]["valence"],
+                    arousal=state["emotion"]["arousal"]
+                )
+                
+                # Guardar en state para uso posterior
+                state["tone_style"] = profile.style
+                state["filler_hint"] = profile.filler_hint
+                
+                print(f"🌊 Tone Bridge: estilo={profile.style}, "
+                      f"valence_avg={profile.valence_avg:.2f}, "
+                      f"arousal_avg={profile.arousal_avg:.2f}")
+            
             from agents.emotion_modulator import create_emotion_modulator
             
-            print(f"😊 Modulando respuesta con emoción: {state['detected_emotion']}")
+            # Usar detected_emotion o emotion.label
+            target_emotion = state.get("detected_emotion") or state.get("emotion", {}).get("label", "neutral")
+            
+            print(f"😊 Modulando respuesta con emoción: {target_emotion}")
             
             # Obtener modulador
             modulator = create_emotion_modulator()
             
-            # Modular respuesta
+            # Modular respuesta (opcionalmente con filler_hint)
             modulated_response = modulator.modulate(
                 text=state["response"],
-                target_emotion=state["detected_emotion"]
+                target_emotion=target_emotion
             )
             
             print(f"✅ Modulación aplicada")
@@ -867,7 +996,8 @@ class SARAiOrchestrator:
                 beta=0.5,
                 agent_used="omni",  # v2.16: cambiado de "multimodal" a "omni"
                 response=response,
-                feedback=0.0
+                feedback=0.0,
+                skill_used=None  # v2.12: multimodal no usa skills
             )
             
             return response

@@ -15,13 +15,19 @@ help:       ## Muestra este mensaje de ayuda
 	@echo "SARAi v2.16 - Makefile de Producción (Hybrid llama.cpp)"
 	@echo ""
 	@echo "Targets disponibles:"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@echo "🆕 NUEVO: Sistema Híbrido llama.cpp"
 	@echo "  • Detecta tu CPU automáticamente"
 	@echo "  • Elige la mejor estrategia (AVX512 | AVX2 | AVX2-BLAS | generic)"
 	@echo "  • Nunca falla (siempre fallback a generic)"
 	@echo "  • Un solo comando: make install"
+	@echo ""
+	@echo "📊 NUEVO v2.14: Sistema de Benchmarking"
+	@echo "  • make benchmark VERSION=v2.14         → Ejecuta benchmark completo"
+	@echo "  • make benchmark-compare OLD=v2.13 NEW=v2.14  → Compara versiones"
+	@echo "  • make benchmark-history               → Muestra histórico"
+	@echo "  • make benchmark-quick VERSION=v2.14   → Benchmark rápido (debug)"
 
 install:    ## 1) Setup completo: venv + deps + llama.cpp HÍBRIDO + GGUFs (~20-30 min)
 	@echo "🔧 Instalando SARAi v2.16 (Hybrid llama.cpp)..."
@@ -847,10 +853,45 @@ show-llama-build: ## [v2.16 LEGACY] Alias para show-llama-strategy
 		CORES=$$(nproc); \
 		RECOMMENDED=$$((CORES * 3 / 4)); \
 		echo "  • CPU Cores: $$CORES"; \
-		echo "  • Recomendado: $$RECOMMENDED threads (75% de cores)"; \
+                echo "  • Recomendado: $$RECOMMENDED threads (75% de cores)"; \
+        fi
+
+# ============================================================================
+# BENCHMARKING SYSTEM (v2.14+)
+# ============================================================================
+
+benchmark:  ## [v2.14+] Ejecuta benchmark completo de la versión actual y guarda resultados
+	@echo "🚀 Ejecutando benchmark SARAi..."
+	@if [ -z "$(VERSION)" ]; then \
+		echo "❌ Error: especifica VERSION. Ejemplo: make benchmark VERSION=v2.14"; \
+		exit 1; \
 	fi
+	@$(PYTHON) tests/benchmark_suite.py --version $(VERSION) --save
+	@echo "✅ Benchmark completado y guardado"
+
+benchmark-compare:  ## [v2.14+] Compara versión actual con anterior (uso: make benchmark-compare OLD=v2.13 NEW=v2.14)
+	@echo "📊 Comparando versiones..."
+	@if [ -z "$(OLD)" ] || [ -z "$(NEW)" ]; then \
+		echo "❌ Error: especifica OLD y NEW. Ejemplo: make benchmark-compare OLD=v2.13 NEW=v2.14"; \
+		exit 1; \
+	fi
+	@$(PYTHON) tests/benchmark_suite.py --version $(NEW) --compare $(OLD)
+
+benchmark-history:  ## [v2.14+] Muestra histórico de benchmarks guardados
+	@echo "📚 Histórico de benchmarks:"
+	@$(PYTHON) tests/benchmark_suite.py --version dummy --history
+
+benchmark-quick:  ## [v2.14+] Benchmark rápido solo de latencia y RAM (útil para debug)
+	@echo "⚡ Benchmark rápido..."
+	@$(PYTHON) -c "\
+from tests.benchmark_suite import SARAiBenchmark; \
+import json; \
+b = SARAiBenchmark('$(VERSION)' if '$(VERSION)' else 'v2.14'); \
+results = { \
+    'latency_short': b.benchmark_latency_text_short(), \
+    'memory': b.benchmark_memory_usage(), \
+}; \
+print(json.dumps(results, indent=2))"
 
 # Target por defecto
 .DEFAULT_GOAL := help
-
-
