@@ -41,7 +41,7 @@ class SolarOllama:
     Cliente HTTP para SOLAR-10.7B en servidor Ollama
     
     Configuración desde .env:
-    - OLLAMA_BASE_URL: URL del servidor (ej. http://192.168.0.251:11434)
+    - OLLAMA_BASE_URL: URL del servidor (ej. http://localhost:11434)
     - SOLAR_MODEL_NAME: Nombre del modelo (ej. fblgit/UNA-SOLAR-10.7B-Instruct-v1.0:Q5_K_M)
     - OLLAMA_TIMEOUT: Timeout en segundos (default: 120)
     - OLLAMA_RETRIES: Número de reintentos (default: 3)

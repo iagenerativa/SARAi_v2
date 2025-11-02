@@ -1,0 +1,108 @@
+name: IP Hardcode Check
+
+on:
+  pull_request:
+    branches: [ master, develop ]
+  push:
+    branches: [ master, develop ]
+
+jobs:
+  check-hardcoded-ips:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Check for hardcoded private IPs
+      run: |
+        echo "🔍 Buscando IPs hardcodeadas en código Python, YAML y configs..."
+        
+        # Buscar en código Python
+        if grep -rn "192\.168\|10\.\|172\.\(1[6-9]\|2[0-9]\|3[0-1]\)\." \
+           --include="*.py" \
+           --exclude-dir=".venv" \
+           --exclude-dir=".git" \
+           --exclude-dir="models" \
+           core/ agents/ scripts/ tests/ 2>/dev/null; then
+          echo "❌ ERROR: IPs privadas hardcodeadas encontradas en archivos Python"
+          echo ""
+          echo "Las IPs privadas NO deben estar hardcodeadas en el código."
+          echo "Usa variables de entorno en su lugar:"
+          echo "  ✅ CORRECTO: api_url = os.getenv('OLLAMA_BASE_URL', 'http://localhost:11434')"
+          echo "  ❌ INCORRECTO: api_url = 'http://192.168.1.100:11434'"
+          exit 1
+        fi
+        
+        # Buscar en archivos YAML
+        if grep -rn "192\.168\|10\.\|172\.\(1[6-9]\|2[0-9]\|3[0-1]\)\." \
+           --include="*.yaml" \
+           --include="*.yml" \
+           --exclude-dir=".venv" \
+           --exclude-dir=".git" \
+           config/ 2>/dev/null; then
+          echo "❌ ERROR: IPs privadas hardcodeadas encontradas en archivos YAML"
+          echo ""
+          echo "Usa variables de entorno con \${VAR} syntax:"
+          echo "  ✅ CORRECTO: api_url: \${OLLAMA_BASE_URL}"
+          echo "  ❌ INCORRECTO: api_url: http://192.168.1.100:11434"
+          exit 1
+        fi
+        
+        # Buscar en .env (excepto .env.example que es template)
+        if grep -rn "192\.168\|10\.\|172\.\(1[6-9]\|2[0-9]\|3[0-1]\)\." \
+           .env 2>/dev/null; then
+          echo "❌ ERROR: IPs privadas encontradas en .env"
+          echo ""
+          echo "El archivo .env NO debe contener IPs específicas de tu red local."
+          echo "Usa 'localhost' o dominios:"
+          echo "  ✅ CORRECTO: OLLAMA_BASE_URL=http://localhost:11434"
+          echo "  ❌ INCORRECTO: OLLAMA_BASE_URL=http://192.168.1.100:11434"
+          exit 1
+        fi
+        
+        echo "✅ No se encontraron IPs hardcodeadas en código activo"
+        
+    - name: Check for localhost alternatives
+      run: |
+        echo "📝 Verificando uso correcto de localhost..."
+        
+        # Verificar que se usa localhost en defaults
+        if ! grep -q "localhost" .env.example 2>/dev/null; then
+          echo "⚠️  WARNING: .env.example debería tener 'localhost' como default seguro"
+        fi
+        
+        echo "✅ Verificación de localhost completada"
+        
+    - name: Check documentation placeholders
+      run: |
+        echo "📚 Verificando placeholders en documentación..."
+        
+        # Verificar que docs usan placeholders
+        if grep -rn "192\.168\|10\.\|172\.\(1[6-9]\|2[0-9]\|3[0-1]\)\." \
+           --include="*.md" \
+           README.md docs/OPERATIONS_QUICK_REFERENCE.md docs/UNIFIED_WRAPPER_GUIDE.md 2>/dev/null; then
+          echo "⚠️  WARNING: Documentación operativa contiene IPs específicas"
+          echo "Usa placeholders genéricos:"
+          echo "  ✅ CORRECTO: <OLLAMA_HOST> o \${OLLAMA_BASE_URL}"
+          echo "  ❌ INCORRECTO: 192.168.1.100"
+          # No falla, solo warning
+        else
+          echo "✅ Documentación usa placeholders correctamente"
+        fi
+        
+    - name: Summary
+      if: success()
+      run: |
+        echo ""
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "✅ IP HARDCODE CHECK: PASSED"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+        echo "✓ Código Python: Sin IPs hardcodeadas"
+        echo "✓ Archivos YAML: Sin IPs hardcodeadas"
+        echo "✓ .env: Sin IPs hardcodeadas"
+        echo "✓ Documentación: Usando placeholders"
+        echo ""
+        echo "Política de configuración sin IPs: CUMPLIDA ✅"
+        echo ""

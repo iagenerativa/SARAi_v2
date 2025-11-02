@@ -322,7 +322,7 @@ Escenario: Migrar de Ollama a GGUF local
 ANTES (config/models.yaml):
 solar_short:
   backend: "ollama"
-  api_url: "http://192.168.0.251:11434"
+    api_url: "${OLLAMA_BASE_URL}"
   model_name: "solar-10.7b-q4_k_m"
 
 DESPUÉS (config/models.yaml):

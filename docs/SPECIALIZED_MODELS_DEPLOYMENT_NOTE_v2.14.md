@@ -18,14 +18,14 @@
 - **Tamaño**: 9 GB (Q4_K_M)
 - **Parámetros**: 14.8B (vs 8B planeado)
 - **Especialización**: Generación de campañas de marketing
-- **Estado**: ✅ **YA DISPONIBLE** en Ollama remoto (192.168.0.251:11434)
+- **Estado**: ✅ **YA DISPONIBLE** en Ollama remoto (${OLLAMA_BASE_URL})
 - **Ventaja**: Modelo más grande (14B > 8B) = mejor calidad
 
 ### Test de Validación
 
 ```bash
 # Test ejecutado: 1 nov 2025 19:59 UTC
-curl -X POST http://192.168.0.251:11434/api/generate -d '{
+curl -X POST ${OLLAMA_BASE_URL}/api/generate -d '{
   "model": "pannapeak/mkt-campaign-gen-14b-q4_k_m-gguf",
   "prompt": "Genera copy publicitario breve (30 palabras) para campaña de lanzamiento de producto tech SaaS enfocado en empresas",
   "stream": false,
@@ -58,7 +58,7 @@ curl -X POST http://192.168.0.251:11434/api/generate -d '{
 
 ```bash
 # MODELOS EXTERNOS - OLLAMA REMOTE
-OLLAMA_BASE_URL=http://192.168.0.251:11434
+OLLAMA_BASE_URL=http://<OLLAMA_HOST>:11434
 
 # General purpose (ya desplegado)
 SOLAR_MODEL_NAME=hf.co/solxxcero/SOLAR-10.7B-Instruct-v1.0-Q4_K_M-GGUF

@@ -36,7 +36,12 @@ requests>=2.31.0  # Para SearXNG (v2.10)
 # Testing (opcional)
 pytest>=7.4.0
 pytest-cov>=4.1.0
+pytest-xdist>=3.5.0  # FASE 5: Parallel testing
 psutil>=5.9.0  # Para monitoreo de RAM
+
+# FASE 5: Optimización y Profiling
+memory-profiler>=0.61.0  # Memory profiling
+line-profiler>=4.1.0  # Line-by-line profiling
 
 # Nota: Archivos GGUF requeridos (descargar con huggingface-cli):
 # - SOLAR-10.7B-Instruct-v1.0-Q4_K_M.gguf (~6GB)

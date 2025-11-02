@@ -470,7 +470,7 @@ skills_infra:
   # Home Operations (Home Assistant)
   home_ops:
     enabled: true
-    home_assistant_url: "http://192.168.1.100:8123"  # URL local de HA
+    home_assistant_url: "${HOME_ASSISTANT_URL}"  # Definir en .env
     home_assistant_token: ""  # Long-lived access token (configurar en .env)
     timeout: 10  # segundos
     

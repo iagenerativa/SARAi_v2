@@ -2,7 +2,7 @@
 
 ## ✅ Estado: FUNCIONANDO
 
-Conexión validada al servidor Ollama de desarrollo (192.168.0.251:11434) con SOLAR-10.7B.
+Conexión validada al servidor Ollama de desarrollo (<OLLAMA_HOST>:11434) con SOLAR-10.7B.
 
 ## 📋 Archivos Creados/Modificados
 
@@ -11,7 +11,7 @@ Conexión validada al servidor Ollama de desarrollo (192.168.0.251:11434) con SO
 **`.env`** (NUEVO)
 - Configuración centralizada de servidor Ollama
 - Variables clave:
-  - `OLLAMA_BASE_URL=http://192.168.0.251:11434`
+  - `OLLAMA_BASE_URL=http://<OLLAMA_HOST>:11434`
   - `SOLAR_MODEL_NAME=hf.co/fblgit/UNA-SOLAR-10.7B-Instruct-v1.0:Q5_K_M`
   - `OLLAMA_TIMEOUT=120`
   - `OLLAMA_RETRIES=3`
@@ -68,7 +68,7 @@ $ python3 scripts/test_ollama_connection.py
 
 🔧 Probando conexión a servidor Ollama de desarrollo...
 ✅ Cliente Ollama inicializado:
-   Servidor: http://192.168.0.251:11434
+   Servidor: http://<OLLAMA_HOST>:11434
    Modelo: hf.co/fblgit/UNA-SOLAR-10.7B-Instruct-v1.0:Q5_K_M
    Timeout: 120s
    Reintentos: 3
@@ -143,7 +143,7 @@ def get_solar(prefer_ollama: bool = True):
 
 **Desarrollo** (`.env`):
 ```bash
-OLLAMA_BASE_URL=http://192.168.0.251:11434
+OLLAMA_BASE_URL=http://<OLLAMA_HOST>:11434
 SOLAR_PREFER_OLLAMA=true
 ```
 

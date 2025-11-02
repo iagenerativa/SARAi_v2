@@ -10,14 +10,23 @@ Mide latencias reales de cada componente y latencia total E2E.
 """
 
 import time
-import numpy as np
-import torch
-import onnxruntime as ort
 from pathlib import Path
 from typing import Dict, Tuple, Optional
-import pyaudio
-import wave
 import io
+
+import pytest
+
+try:
+    import numpy as np
+    import torch
+    import onnxruntime as ort
+    import pyaudio
+    import wave
+except ImportError as e:
+    pytest.skip(
+        f"Dependencias del pipeline de voz con LLM faltantes: {e}",
+        allow_module_level=True,
+    )
 
 # Colores ANSI
 class C:

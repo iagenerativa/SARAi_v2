@@ -40,10 +40,14 @@ def main():
         print(f"   {e}")
         print(f"\n💡 Soluciones:")
         print(f"   1. Verifica que el servidor Ollama esté corriendo:")
-        print(f"      ssh user@192.168.0.251 'systemctl status ollama'")
+        print(
+            "      ssh user@${OLLAMA_HOST:-<ollama-host>} 'systemctl status ollama'"
+        )
         print(f"   2. Verifica la IP en .env (OLLAMA_BASE_URL)")
         print(f"   3. Prueba acceso HTTP:")
-        print(f"      curl http://192.168.0.251:11434/api/tags")
+        print(
+            "      curl ${OLLAMA_BASE_URL:-http://localhost:11434}/api/tags"
+        )
         return 1
     
     except Exception as e:

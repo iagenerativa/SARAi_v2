@@ -633,7 +633,7 @@ docker exec -it sarai-omni-engine touch /tmp/test && ls /tmp/test
 # Esperado: "/tmp/test" (funciona)
 
 # 5. Verificar aislamiento de red
-docker exec -it sarai-omni-engine ping 8.8.8.8
+docker exec -it sarai-omni-engine ping <public_dns_ip>
 # Esperado: Network unreachable (si sarai_internal tiene internal:true)
 ```
 

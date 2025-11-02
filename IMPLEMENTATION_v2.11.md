@@ -137,7 +137,7 @@ python -m skills.home_ops \
 skills_infra:
   home_ops:
     enabled: true
-    home_assistant_url: "http://192.168.1.100:8123"
+    home_assistant_url: "${HOME_ASSISTANT_URL}"
     dry_run_by_default: true
     use_firejail: true
 ```
@@ -206,7 +206,7 @@ audio_engine:
 skills_infra:
   home_ops:
     enabled: true
-    home_assistant_url: "http://192.168.1.100:8123"
+    home_assistant_url: "${HOME_ASSISTANT_URL}"
     critical_commands:
       - "climate.set_temperature"
       - "lock.unlock"
@@ -257,7 +257,7 @@ OMNI_MODEL_PATH=models/Qwen3-VL-4B-Instruct-es-q4.onnx
 OMNI_PORT=8001
 
 # Home Assistant
-HOME_ASSISTANT_URL=http://192.168.1.100:8123
+HOME_ASSISTANT_URL=http://localhost:8123
 HOME_ASSISTANT_TOKEN=  # Generate in HA profile
 
 # Security
@@ -465,7 +465,7 @@ nano .env
 
 # Critical variables:
 # - AUDIO_ENGINE=omni3b
-# - HOME_ASSISTANT_URL=http://192.168.1.100:8123
+# - HOME_ASSISTANT_URL=http://localhost:8123
 # - HOME_ASSISTANT_TOKEN=<generate-in-ha>
 # - SARAI_HMAC_SECRET=$(openssl rand -hex 32)
 ```

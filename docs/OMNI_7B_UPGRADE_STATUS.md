@@ -85,7 +85,7 @@ qwen_omni:
 
 | Componente | RAM (GB) | % Total | Notas |
 |------------|----------|---------|-------|
-| **SOLAR Cliente HTTP** | 0.2 | 1.3% | Servidor remoto 192.168.0.251:11434 |
+| **SOLAR Cliente HTTP** | 0.2 | 1.3% | Servidor remoto <OLLAMA_HOST>:11434 |
 | **LFM2-1.2B GGUF** | 0.7 | 4.4% | Tiny tier, n_ctx=2048 |
 | **Qwen-Omni-7B GGUF** | 4.9 | 30.6% | **UPGRADED**, Q4_K_M, n_ctx=8192 |
 | **EmbeddingGemma** | 0.15 | 0.9% | Clasificación semántica |

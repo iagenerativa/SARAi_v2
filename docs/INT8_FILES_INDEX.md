@@ -176,7 +176,7 @@ models/onnx/
 | Problema | Solución Rápida | Doc Detallada |
 |----------|-----------------|---------------|
 | GPU no detectada | `pip install onnxruntime-gpu` | QUANTIZATION_CHECKLIST.md |
-| SCP falla | Usar IP: `scp ... noel@192.168.1.x:...` | WINDOWS_QUANTIZATION_WORKFLOW.md |
+| SCP falla | Usar IP: `scp ... noel@<LAN_IP>:...` | WINDOWS_QUANTIZATION_WORKFLOW.md |
 | Checksums difieren | Re-transferir archivos | QUANTIZATION_CHECKLIST.md |
 | Tests fallan | Verificar config apunta a INT8 | QUANTIZATION_CHECKLIST.md |
 | Latencia alta | Verificar warmup activado | WINDOWS_QUANTIZATION_WORKFLOW.md |

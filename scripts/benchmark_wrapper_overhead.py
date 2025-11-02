@@ -13,6 +13,7 @@ Casos de prueba:
 3. GGUF: Wrapper vs llama-cpp-python directo (si disponible)
 """
 
+import os
 import time
 import statistics
 import sys
@@ -100,8 +101,9 @@ def benchmark_ollama_wrapper(prompt: str = "Hola") -> str:
 
 def benchmark_ollama_direct(prompt: str = "Hola") -> str:
     """Benchmark: requests directo a Ollama API"""
+    api_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     response = requests.post(
-        "http://192.168.0.251:11434/api/generate",
+        f"{api_url.rstrip('/')}/api/generate",
         json={
             "model": "hf.co/TheBloke/SOLAR-10.7B-Instruct-v1.0-GGUF:Q4_K_M",
             "prompt": prompt,

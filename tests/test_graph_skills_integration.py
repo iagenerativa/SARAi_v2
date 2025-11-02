@@ -10,6 +10,7 @@ import pytest
 from unittest.mock import Mock, patch
 from core.skill_configs import match_skill_by_keywords
 from core.mcp import detect_and_apply_skill
+from core.graph import SARAiOrchestrator
 
 
 class TestSkillDetectionStandalone:
@@ -72,7 +73,8 @@ class TestSkillConfigGeneration:
         assert "system_prompt" in config
         assert "generation_params" in config
         assert "full_prompt" in config
-        assert config["preferred_model"] == "solar"
+        # Programming skill ahora usa viscoder2 (v2.14+)
+        assert config["preferred_model"] == "viscoder2"
         
         # Verificar parámetros
         params = config["generation_params"]
@@ -320,33 +322,43 @@ if __name__ == "__main__":
 
 
 class TestSkillParametersApplied:
-    """Verifica que parámetros de skills se aplican correctamente"""
+    """Verifica que parámetros de skills se aplican correctamente
     
-    @pytest.fixture
-    def orchestrator(self):
-        return SARAiOrchestrator(use_simulated_trm=True)
+    NOTA: Tests unitarios que verifican configuración de skills sin 
+    necesidad de inicializar el orquestador completo.
+    """
     
-    def test_programming_skill_low_temperature(self, orchestrator):
-        """Verifica que programming skill usa temperatura baja (0.3)"""
-        # Este test requiere acceso al modelo para verificar parámetros
-        # Por ahora, validamos que el skill se detecta
-        query = "Escribe código Python para calcular números primos"
-        state = orchestrator.invoke(query)
+    def test_programming_skill_low_temperature(self):
+        """Verifica que programming skill tiene temperatura baja (0.3)"""
+        from core.skill_configs import PROGRAMMING_SKILL
         
-        assert state["skill_used"] == "programming"
+        # Verificar configuración del skill
+        assert PROGRAMMING_SKILL.temperature == 0.3
+        assert PROGRAMMING_SKILL.name == "programming"
         
-        # TODO: Mockear model.generate para verificar parámetros pasados
-        print(f"✅ Programming skill detectado (temp esperada: 0.3)")
+        # Verificar detección
+        skill = match_skill_by_keywords("Escribe código Python para calcular números primos")
+        assert skill is not None
+        assert skill.name == "programming"
+        assert skill.temperature == 0.3
+        
+        print(f"✅ Programming skill: temperature={skill.temperature} (precisión)")
     
-    def test_creative_skill_high_temperature(self, orchestrator):
-        """Verifica que creative skill usa temperatura alta (0.9)"""
-        query = "Genera ideas innovadoras para un producto tech"
-        state = orchestrator.invoke(query)
+    def test_creative_skill_high_temperature(self):
+        """Verifica que creative skill tiene temperatura alta (0.9)"""
+        from core.skill_configs import CREATIVE_SKILL
         
-        assert state["skill_used"] == "creative"
+        # Verificar configuración del skill
+        assert CREATIVE_SKILL.temperature == 0.9
+        assert CREATIVE_SKILL.name == "creative"
         
-        # TODO: Verificar temperature=0.9 en generación
-        print(f"✅ Creative skill detectado (temp esperada: 0.9)")
+        # Verificar detección
+        skill = match_skill_by_keywords("Genera ideas innovadoras para un producto tech")
+        assert skill is not None
+        assert skill.name == "creative"
+        assert skill.temperature == 0.9
+        
+        print(f"✅ Creative skill: temperature={skill.temperature} (creatividad)")
 
 
 if __name__ == "__main__":

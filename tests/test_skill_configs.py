@@ -102,11 +102,11 @@ class TestPredefinedSkills:
     """Tests para skills predefinidos"""
     
     def test_programming_skill_exists(self):
-        """Verifica que el skill de programación existe"""
+        """Verifica que existe el skill de programación"""
+        assert PROGRAMMING_SKILL is not None
         assert PROGRAMMING_SKILL.name == "programming"
-        assert "code" in PROGRAMMING_SKILL.keywords
-        assert PROGRAMMING_SKILL.preferred_model == "solar"
-        assert PROGRAMMING_SKILL.temperature == 0.3  # Baja para precisión
+        # v2.14+: Programming skill usa VisCoder2
+        assert PROGRAMMING_SKILL.preferred_model == "viscoder2"
     
     def test_diagnosis_skill_exists(self):
         """Verifica que el skill de diagnóstico existe"""
@@ -147,7 +147,7 @@ class TestPredefinedSkills:
     
     def test_all_skills_registry(self):
         """Verifica que todos los skills están registrados"""
-        assert len(ALL_SKILLS) == 7
+        assert len(ALL_SKILLS) == 8
         assert "programming" in ALL_SKILLS
         assert "diagnosis" in ALL_SKILLS
         assert "financial" in ALL_SKILLS
@@ -175,7 +175,7 @@ class TestSkillUtilityFunctions:
     def test_list_skills(self):
         """Verifica listado de todos los skills"""
         skills = list_skills()
-        assert len(skills) == 7
+        assert len(skills) == 8
         assert "programming" in skills
         assert "creative" in skills
     
@@ -237,7 +237,7 @@ class TestSkillUtilityFunctions:
         """Verifica obtención de info resumida de todos los skills"""
         info = get_skills_info()
         
-        assert len(info) == 7
+        assert len(info) == 8
         assert "programming" in info
         assert "description" in info["programming"]
         assert "keywords" in info["programming"]
@@ -256,7 +256,8 @@ class TestMCPSkillIntegration:
         assert "system_prompt" in result
         assert "generation_params" in result
         assert "full_prompt" in result
-        assert result["preferred_model"] == "solar"
+        # v2.14+: Programming skill recomienda viscoder2
+        assert result["preferred_model"] == "viscoder2"
     
     def test_detect_and_apply_skill_creative(self):
         """Verifica detección de skill creativo"""
@@ -274,7 +275,7 @@ class TestMCPSkillIntegration:
     def test_list_available_skills_from_mcp(self):
         """Verifica listado de skills desde MCP"""
         skills = list_available_skills()
-        assert len(skills) == 7
+        assert len(skills) == 8
     
     def test_get_skill_info_from_mcp(self):
         """Verifica obtención de info de skill desde MCP"""

@@ -132,7 +132,7 @@ scp models\onnx\agi_audio_core_int8.onnx.data noel@agi1:~/SARAi_v2/models/onnx/
 
 **Si falla con hostname `agi1`**, probar con IP:
 ```powershell
-scp models\onnx\agi_audio_core_int8.onnx.data noel@192.168.1.x:~/SARAi_v2/models/onnx/
+scp models\onnx\agi_audio_core_int8.onnx.data noel@<LAN_IP>:~/SARAi_v2/models/onnx/
 ```
 
 ### Opción B: WinSCP (Interfaz gráfica)
@@ -409,8 +409,8 @@ sudo ufw allow 22/tcp
 
 ```powershell
 # En Windows, probar con IP directa
-ping 192.168.1.x  # Reemplazar x con IP de agi1
-scp models\onnx\agi_audio_core_int8.onnx.data noel@192.168.1.x:~/SARAi_v2/models/onnx/
+ping <LAN_IP>  # Reemplazar con la IP del host agi1
+scp models\onnx\agi_audio_core_int8.onnx.data noel@<LAN_IP>:~/SARAi_v2/models/onnx/
 ```
 
 - [ ] SSH server corriendo en Linux

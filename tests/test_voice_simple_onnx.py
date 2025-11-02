@@ -18,15 +18,15 @@ import sys
 import time
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 try:
     import pyaudio
     import numpy as np
-except ImportError:
-    print("❌ Dependencias faltantes. Instalar con:")
-    print("   pip install pyaudio numpy")
-    sys.exit(1)
+except ImportError as e:
+    pytest.skip(f"Dependencias ONNX de voz faltantes: {e}", allow_module_level=True)
 
 
 class SimpleONNXVoiceTest:

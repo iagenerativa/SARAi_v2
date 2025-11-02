@@ -472,7 +472,7 @@ paths:
 #    - Se resuelven automáticamente al cargar
 #    - Útil para API keys seguras y configuración dinámica
 #    - Ejemplos en .env:
-#      * OLLAMA_BASE_URL=http://192.168.0.251:11434  (desarrollo)
+#      * OLLAMA_BASE_URL=http://localhost:11434  (desarrollo por defecto)
 #      * OLLAMA_BASE_URL=http://localhost:11434      (producción local)
 #      * OLLAMA_BASE_URL=http://sarai-ollama:11434   (producción Docker)
 #      * SOLAR_MODEL_NAME=hf.co/fblgit/UNA-SOLAR-10.7B-Instruct-v1.0:Q5_K_M

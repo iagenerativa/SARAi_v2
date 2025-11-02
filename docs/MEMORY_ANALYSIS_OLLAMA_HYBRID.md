@@ -268,7 +268,7 @@ def get_solar_with_fallback():
 
 ### 2. Latencia de Red
 
-**LAN (192.168.x.x)**:
+**LAN (subred privada)**:
 - Ping: ~1ms
 - Overhead HTTP: ~50ms por request
 - Streaming: Token-por-token sin lag perceptible
@@ -281,7 +281,7 @@ def get_solar_with_fallback():
 
 ### 3. Escalabilidad del Servidor
 
-**Servidor Ollama (192.168.0.251)**:
+**Servidor Ollama (<OLLAMA_HOST>)**:
 - Capacidad: ~2-3 requests simultáneas (depende de RAM)
 - Uso actual: Solo desarrollo de SARAi
 - **Conclusión**: ✅ OK para 1-2 desarrolladores

@@ -4,7 +4,7 @@
 
 SARAi v2.16 ahora soporta **servidor Ollama remoto** para desarrollo, permitiendo:
 
-- ✅ Servidor de desarrollo en red local (192.168.0.251:11434)
+- ✅ Servidor de desarrollo en red local (<OLLAMA_HOST>:11434)
 - ✅ SOLAR-10.7B disponible sin descargar GGUF localmente
 - ✅ Configuración centralizada en `.env`
 - ✅ Fallback automático a GGUF nativo si servidor no disponible
@@ -26,7 +26,7 @@ SARAi v2.16 ahora soporta **servidor Ollama remoto** para desarrollo, permitiend
                     │ (OLLAMA_BASE_URL)
                     ▼
 ┌─────────────────────────────────────────┐
-│  Servidor Ollama (192.168.0.251:11434)  │
+│  Servidor Ollama (<OLLAMA_HOST>:11434)  │
 │  ┌────────────────────────────────┐    │
 │  │ SOLAR-10.7B                     │    │
 │  │ fblgit/UNA-SOLAR-10.7B-         │    │
@@ -46,7 +46,7 @@ El archivo `.env` ya está pre-configurado para desarrollo:
 
 ```bash
 # Servidor Ollama (Desarrollo)
-OLLAMA_BASE_URL=http://192.168.0.251:11434
+OLLAMA_BASE_URL=http://<OLLAMA_HOST>:11434
 SOLAR_MODEL_NAME=fblgit/UNA-SOLAR-10.7B-Instruct-v1.0:Q5_K_M
 OLLAMA_TIMEOUT=120
 OLLAMA_RETRIES=3
@@ -66,14 +66,14 @@ SOLAR_MODEL_NAME=solar:10.7b
 python scripts/test_ollama_connection.py
 
 # Opción B: cURL manual
-curl http://192.168.0.251:11434/api/tags
+curl http://<OLLAMA_HOST>:11434/api/tags
 ```
 
 **Salida esperada**:
 
 ```
 ✅ Cliente Ollama inicializado:
-   Servidor: http://192.168.0.251:11434
+   Servidor: http://<OLLAMA_HOST>:11434
    Modelo: fblgit/UNA-SOLAR-10.7B-Instruct-v1.0:Q5_K_M
    Timeout: 120s
    Reintentos: 3
@@ -164,13 +164,13 @@ Esto garantiza **máxima calidad** de respuestas según entrenamiento de Upstage
 
 ```bash
 # 1. Verificar que el servidor esté corriendo
-ssh user@192.168.0.251 'systemctl status ollama'
+ssh user@<OLLAMA_HOST> 'systemctl status ollama'
 
 # 2. Verificar acceso HTTP
-curl http://192.168.0.251:11434/api/tags
+curl http://<OLLAMA_HOST>:11434/api/tags
 
 # 3. Verificar firewall
-ssh user@192.168.0.251 'sudo ufw status'
+ssh user@<OLLAMA_HOST> 'sudo ufw status'
 
 # 4. Probar con localhost (si Ollama está local)
 OLLAMA_BASE_URL=http://localhost:11434 python scripts/test_ollama_connection.py
@@ -182,7 +182,7 @@ OLLAMA_BASE_URL=http://localhost:11434 python scripts/test_ollama_connection.py
 
 ```bash
 # Conectar al servidor y descargar modelo
-ssh user@192.168.0.251
+ssh user@<OLLAMA_HOST>
 ollama pull fblgit/UNA-SOLAR-10.7B-Instruct-v1.0:Q5_K_M
 
 # O usar modelo oficial

@@ -222,8 +222,8 @@ sudo ufw allow 22/tcp
 
 ```powershell
 # En Windows, probar con IP directa
-ping 192.168.1.x  # Reemplazar x con IP de agi1
-scp models\onnx\agi_audio_core_int8.onnx.data noel@192.168.1.x:~/SARAi_v2/models/onnx/
+ping <LAN_IP>  # Reemplazar con la IP del host agi1
+scp models\onnx\agi_audio_core_int8.onnx.data noel@<LAN_IP>:~/SARAi_v2/models/onnx/
 ```
 
 **Alternativa**: Usar WinSCP (interfaz gráfica) en vez de SCP.

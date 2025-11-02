@@ -153,7 +153,7 @@ python3 -c "import yaml; yaml.safe_load(open('config/models.yaml'))"
 ```yaml
 # Mismo YAML funciona en dev/prod/docker
 solar_short:
-  api_url: "${OLLAMA_BASE_URL}"  # Dev: 192.168.0.251, Prod: localhost
+   api_url: "${OLLAMA_BASE_URL}"  # Definir en .env para dev/prod/local
 ```
 
 ### 4. RAM Management ✅

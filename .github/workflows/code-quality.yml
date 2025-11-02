@@ -1,0 +1,218 @@
+# ===================================================================
+# SARAi v2.14+ - CI/CD Workflow: Code Quality & Linting
+# ===================================================================
+# Valida calidad de código en cada PR y push
+# Incluye: Python linting, security scanning, dependency check
+# ===================================================================
+
+name: 🔍 Code Quality
+
+on:
+  push:
+    branches: [ master, main, develop ]
+  pull_request:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+jobs:
+  # ================================================================
+  # Job 1: Python Linting
+  # ================================================================
+  python-lint:
+    name: 🐍 Python Linting
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout código
+        uses: actions/checkout@v4
+      
+      - name: 🐍 Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: 📦 Install linters
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 black isort pylint mypy
+      
+      - name: 🔍 Flake8 (PEP8 compliance)
+        run: |
+          flake8 core/ agents/ tests/ \
+            --count \
+            --max-line-length=120 \
+            --statistics \
+            --exclude=__pycache__,.venv \
+            --ignore=E203,W503
+        continue-on-error: true
+      
+      - name: ⚫ Black (code formatting)
+        run: |
+          black --check --diff core/ agents/ tests/
+        continue-on-error: true
+      
+      - name: 🔢 isort (import sorting)
+        run: |
+          isort --check-only --diff core/ agents/ tests/
+        continue-on-error: true
+      
+      - name: 🔍 Pylint (advanced checks)
+        run: |
+          pylint core/ agents/ \
+            --max-line-length=120 \
+            --disable=C0111,C0103,R0913,R0914 \
+            --exit-zero
+        continue-on-error: true
+
+  # ================================================================
+  # Job 2: Security Scanning
+  # ================================================================
+  security-scan:
+    name: 🔒 Security Scanning
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout código
+        uses: actions/checkout@v4
+      
+      - name: 🐍 Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: 📦 Install security tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install bandit safety
+      
+      - name: 🔒 Bandit (security issues)
+        run: |
+          bandit -r core/ agents/ \
+            -f json \
+            -o bandit-report.json \
+            -ll \
+            --exclude tests/
+        continue-on-error: true
+      
+      - name: 📋 Upload Bandit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-security-report
+          path: bandit-report.json
+          retention-days: 30
+      
+      - name: 🛡️ Safety (dependency vulnerabilities)
+        run: |
+          pip install -r requirements.txt
+          safety check --json > safety-report.json || true
+        continue-on-error: true
+      
+      - name: 📋 Upload Safety report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: safety-vulnerability-report
+          path: safety-report.json
+          retention-days: 30
+
+  # ================================================================
+  # Job 3: Dependency Audit
+  # ================================================================
+  dependency-audit:
+    name: 📦 Dependency Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout código
+        uses: actions/checkout@v4
+      
+      - name: 🐍 Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: 📋 Check requirements.txt
+        run: |
+          echo "## 📦 Dependencies Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Total dependencies: $(grep -c '^[a-zA-Z]' requirements.txt)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Key dependencies:" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          grep -E '(pytest|numpy|pyyaml|requests)' requirements.txt >> $GITHUB_STEP_SUMMARY || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+      
+      - name: 🔍 Check for pinned versions
+        run: |
+          unpinned=$(grep -v '==' requirements.txt | grep -v '^#' | grep -v '^$' || true)
+          if [ -n "$unpinned" ]; then
+            echo "⚠️ Warning: Unpinned dependencies found:"
+            echo "$unpinned"
+          else
+            echo "✅ All dependencies are pinned"
+          fi
+
+  # ================================================================
+  # Job 4: Documentation Validation
+  # ================================================================
+  docs-validation:
+    name: 📚 Documentation Validation
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout código
+        uses: actions/checkout@v4
+      
+      - name: 🔍 Check for broken links in README
+        run: |
+          # Check for common documentation issues
+          if grep -r "TODO\|FIXME\|XXX" README.md docs/ 2>/dev/null; then
+            echo "⚠️ Found TODO/FIXME markers in documentation"
+          fi
+      
+      - name: 📋 Validate Markdown structure
+        run: |
+          # Count major documentation files
+          readme_count=$(find . -maxdepth 1 -name "README*.md" | wc -l)
+          docs_count=$(find docs/ -name "*.md" 2>/dev/null | wc -l || echo 0)
+          
+          echo "## 📚 Documentation Overview" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- README files: $readme_count" >> $GITHUB_STEP_SUMMARY
+          echo "- Documentation files: $docs_count" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "$docs_count" -gt 0 ]; then
+            echo "### Recent documentation:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            ls -lt docs/*.md 2>/dev/null | head -5 >> $GITHUB_STEP_SUMMARY || true
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ================================================================
+  # Job 5: Code Quality Summary
+  # ================================================================
+  quality-summary:
+    name: 📊 Quality Summary
+    runs-on: ubuntu-latest
+    needs: [python-lint, security-scan, dependency-audit, docs-validation]
+    if: always()
+    
+    steps:
+      - name: 📊 Generate summary
+        run: |
+          echo "================================"
+          echo "🔍 SARAi Code Quality Results"
+          echo "================================"
+          echo ""
+          echo "Python Linting:      ${{ needs.python-lint.result }}"
+          echo "Security Scanning:   ${{ needs.security-scan.result }}"
+          echo "Dependency Audit:    ${{ needs.dependency-audit.result }}"
+          echo "Docs Validation:     ${{ needs.docs-validation.result }}"
+          echo ""
+          
+          # All jobs allow continue-on-error, so we just report
+          echo "✅ Quality checks completed"
+          echo ""
+          echo "📋 Review artifacts for detailed reports"

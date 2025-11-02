@@ -346,24 +346,60 @@ class MCP:
         
         self.feedback_buffer = []
     
-    def compute_weights(self, hard: float, soft: float) -> Tuple[float, float]:
+    def compute_weights(
+        self,
+        scores_or_hard: Any,
+        soft: Optional[float] = None,
+        context: str = "",
+        feedback_buffer: Optional[List[Dict]] = None
+    ) -> Tuple[float, float]:
+        """Calcula pesos α/β aceptando dicts o valores posicionales.
+
+        Compatibilidad retro:
+        - ``compute_weights({'hard': 0.8, 'soft': 0.2}, context="...")``
+        - ``compute_weights(0.8, 0.2, context="...")``
         """
-        Calcula pesos α, β según el modo activo
-        """
+        if isinstance(scores_or_hard, dict):
+            hard = float(scores_or_hard.get('hard', 0.5))
+            soft_score = float(scores_or_hard.get('soft', 0.5))
+
+            # Segundo argumento posicional puede ser context
+            if isinstance(soft, str) and not context:
+                context_param = soft
+                custom_buffer = feedback_buffer
+            else:
+                context_param = context
+                custom_buffer = feedback_buffer
+        else:
+            hard = float(scores_or_hard)
+            if soft is None:
+                raise ValueError("soft score must be provided when using positional arguments")
+            soft_score = float(soft)
+            context_param = context
+            custom_buffer = feedback_buffer
+
+        active_buffer = custom_buffer if custom_buffer is not None else self.feedback_buffer
+
         if self.mode == "learned":
-            # Calcular estadísticas de feedback
             avg_hard_success = self._compute_avg_success(branch='hard')
             avg_soft_success = self._compute_avg_success(branch='soft')
             urgency = 1.0 if hard > 0.8 else 0.0
             
             features = torch.tensor([
-                hard, soft, avg_hard_success, avg_soft_success, urgency
+                hard,
+                soft_score,
+                avg_hard_success,
+                avg_soft_success,
+                urgency
             ], dtype=torch.float32)
             
             alpha, beta = self.learned_mcp(features)
         else:
             alpha, beta = self.rules_mcp.compute_weights(
-                hard, soft, self.feedback_buffer
+                hard,
+                soft_score,
+                context=context_param,
+                feedback_buffer=active_buffer
             )
         
         return alpha, beta

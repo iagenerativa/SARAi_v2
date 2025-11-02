@@ -20,7 +20,7 @@ Características:
 Backends soportados:
     - GGUF: llama-cpp-python (CPU optimizado)
     - Transformers: HuggingFace con 4-bit quantization (GPU)
-    - Multimodal: Qwen3-VL, Qwen2.5-Omni (vision + audio)
+    - Multimodal: Qwen3-VL (vision)
     - Ollama: API local
     - OpenAI API: GPT-4, Claude, Gemini (cloud)
 
@@ -364,7 +364,7 @@ class TransformersModelWrapper(UnifiedModelWrapper):
 
 class MultimodalModelWrapper(UnifiedModelWrapper):
     """
-    Wrapper para modelos multimodales (Qwen3-VL, Qwen2.5-Omni).
+    Wrapper para modelos multimodales (Qwen3-VL).
     
     Soporta:
         - Texto + Imágenes
@@ -475,9 +475,8 @@ class MultimodalModelWrapper(UnifiedModelWrapper):
     
     def _process_with_audio(self, text: str, audio_data: Union[bytes, str],
                            config: Optional[Dict] = None) -> str:
-        """Procesa texto + audio (STT + análisis)."""
-        # Implementación específica para Qwen2.5-Omni
-        # Por ahora, placeholder
+    """Procesa texto + audio (STT + análisis)."""
+    # Placeholder: soporte de audio pendiente de implementación
         logger.warning("Audio processing not fully implemented yet")
         return self._process_text_only(text, config)
     
@@ -558,10 +557,15 @@ class OllamaModelWrapper(UnifiedModelWrapper):
                     return default
             return resolved
 
-        # Resolver API URL y asegurar formato correcto
-        raw_api_url = self.config.get("api_url", "http://192.168.0.251:11434")
-        api_url = resolve_env(raw_api_url, default="http://192.168.0.251:11434", label="api_url")
-        api_url = api_url.rstrip("/")  # Normalizar para evitar //
+        # Resolver API URL y asegurar formato correcto (sin hardcodear IPs)
+        env_api_url = os.getenv("OLLAMA_BASE_URL") or os.getenv("OLLAMA_API_URL")
+        raw_api_url = self.config.get("api_url") or env_api_url or "http://localhost:11434"
+        api_url = resolve_env(
+            raw_api_url,
+            default=env_api_url or "http://localhost:11434",
+            label="api_url",
+        )
+        api_url = api_url.rstrip("/") if api_url else "http://localhost:11434"
 
         try:
             response = requests.get(f"{api_url}/api/tags", timeout=5)
@@ -620,7 +624,12 @@ class OllamaModelWrapper(UnifiedModelWrapper):
             # Carga perezosa segura
             self._ensure_loaded()
 
-        api_url = getattr(self, "_resolved_api_url", self.config.get("api_url", "http://192.168.0.251:11434"))
+        env_api_url = os.getenv("OLLAMA_BASE_URL") or os.getenv("OLLAMA_API_URL")
+        api_url = getattr(
+            self,
+            "_resolved_api_url",
+            self.config.get("api_url") or env_api_url or "http://localhost:11434",
+        )
         model_name = getattr(self, "_resolved_model_name", self.config.get("model_name"))
         temperature = config.get("temperature", 0.7) if config else 0.7
         
@@ -789,23 +798,9 @@ class EmbeddingModelWrapper(UnifiedModelWrapper):
 
         logger.info(f"🔄 Loading embedding model: {repo_id} on {device_str}")
 
-        try:
-            from transformers import GemmaTokenizer  # noqa: F401
-        except (ImportError, AttributeError):
-            # Algunos builds no exponen GemmaTokenizer directamente.
-            try:
-                import importlib
-                importlib.import_module("transformers.models.gemma.tokenization_gemma")
-            except ImportError as exc:
-                raise ImportError(
-                    "GemmaTokenizer no disponible en transformers. "
-                    "Actualiza transformers>=4.39 o instala los extras necesarios."
-                ) from exc
-
         tokenizer = AutoTokenizer.from_pretrained(
             repo_id,
-            cache_dir=cache_dir,
-            trust_remote_code=True
+            cache_dir=cache_dir
         )
 
         model = AutoModel.from_pretrained(
@@ -813,8 +808,7 @@ class EmbeddingModelWrapper(UnifiedModelWrapper):
             cache_dir=cache_dir,
             torch_dtype=dtype,
             device_map="cpu" if device.type == "cpu" else "auto",
-            low_cpu_mem_usage=True,
-            trust_remote_code=True
+            low_cpu_mem_usage=True
         )
 
         model.to(device)

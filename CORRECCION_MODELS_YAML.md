@@ -40,8 +40,8 @@ solar_short:
   name: "UNA-SOLAR-10.7B-Instruct (Short Context)"
   backend: "ollama"
   
-  # Modelo servido por Ollama (192.168.0.251:11434)
-  api_url: "${OLLAMA_BASE_URL}"  # http://192.168.0.251:11434
+  # Modelo servido por Ollama (definir en OLLAMA_BASE_URL)
+  api_url: "${OLLAMA_BASE_URL}"  # Ejemplo: http://localhost:11434
   model_name: "${SOLAR_MODEL_NAME}"  # hf.co/fblgit/UNA-SOLAR-10.7B-Instruct-v1.0:Q5_K_M
   
   n_ctx: 512
@@ -55,7 +55,7 @@ solar_short:
 
 **Variables de entorno** (.env):
 ```bash
-OLLAMA_BASE_URL=http://192.168.0.251:11434
+OLLAMA_BASE_URL=http://<OLLAMA_HOST>:11434
 SOLAR_MODEL_NAME=hf.co/fblgit/UNA-SOLAR-10.7B-Instruct-v1.0:Q5_K_M
 ```
 
@@ -215,7 +215,7 @@ ls -lh models/cache/lfm2/lfm2-1.2b.Q4_K_M.gguf
 
 ```bash
 # .env (VERIFICAR)
-OLLAMA_BASE_URL=http://192.168.0.251:11434
+OLLAMA_BASE_URL=http://<OLLAMA_HOST>:11434
 SOLAR_MODEL_NAME=hf.co/fblgit/UNA-SOLAR-10.7B-Instruct-v1.0:Q5_K_M
 ```
 
@@ -266,7 +266,7 @@ solar_short:
 
 2. **Verificar Ollama accesible**:
    ```bash
-   curl http://192.168.0.251:11434/api/tags
+  curl ${OLLAMA_BASE_URL}/api/tags
    ```
 
 3. **Implementar lógica de coexistencia** en `core/model_pool.py`:

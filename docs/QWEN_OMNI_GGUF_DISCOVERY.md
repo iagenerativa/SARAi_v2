@@ -19,7 +19,7 @@
 - ✅ **Proveedor reconocido**: Unsloth AI (10.2k followers, cuantización superior)
 - ✅ **16 cuantizaciones disponibles**: Desde Q2_K (1.38 GB) hasta BF16 (6.8 GB)
 - ✅ **Compatible con llama-cpp-python**: Backend estándar de SARAi
-- ✅ **Ya disponible en Ollama server**: 192.168.0.251:11434
+- ✅ **Ya disponible en Ollama server**: <OLLAMA_HOST>:11434
 
 ---
 

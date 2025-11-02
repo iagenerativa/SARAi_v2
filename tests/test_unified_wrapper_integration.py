@@ -2,7 +2,7 @@
 Tests de Integración E2E para Unified Model Wrapper v2.14
 
 Estos tests validan funcionalidad REAL sin mocks pesados.
-Requieren que Ollama esté corriendo en http://192.168.0.251:11434
+Requieren que Ollama esté corriendo en la URL definida por OLLAMA_BASE_URL
 
 Filosofía:
     "Validar comportamiento real > Mock perfecto"
@@ -22,10 +22,15 @@ Uso:
     pytest tests/test_unified_wrapper_integration.py -v -m "not requires_ollama"
 """
 
+import os
+from pathlib import Path
+
 import pytest
 import requests
 import yaml
-from pathlib import Path
+
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
+
 
 from core.unified_model_wrapper import (
     ModelRegistry,
@@ -42,7 +47,7 @@ from core.unified_model_wrapper import (
 def is_ollama_available():
     """Verifica si Ollama está corriendo"""
     try:
-        response = requests.get("http://192.168.0.251:11434/api/tags", timeout=2)
+        response = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=2)
         return response.status_code == 200
     except:
         return False
@@ -56,7 +61,7 @@ def is_ollama_available():
 def ollama_available():
     """Marca tests que requieren Ollama"""
     if not is_ollama_available():
-        pytest.skip("Ollama no disponible en http://192.168.0.251:11434")
+        pytest.skip(f"Ollama no disponible en {OLLAMA_BASE_URL}")
 
 
 # ============================================================================

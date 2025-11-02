@@ -1,5 +1,100 @@
 # SARAi v2.13 - Guía para Agentes de IA (Skills Phoenix + Layer Architecture)
 
+> Documento maestro de referencia para implementación, operación, auditoría y seguimiento del proyecto SARAi.
+
+Última actualización: 2025-11-01
+
+## Resumen ejecutivo
+
+SARAi es una AGI local híbrida, modular y auditada, construida sobre dos pilares: Skills Phoenix (skills como estrategias de prompting) y Layer Architecture (capas I/O, memoria y fluidez). Desde v2.14, incorpora un Unified Model Wrapper que abstrae 8 backends (GGUF/llama-cpp, Transformers, Multimodal, Ollama, OpenAI API, Embeddings, PyTorch checkpoints, Config) y enruta automáticamente el skill de programación a VisCoder2 vía Ollama, sin romper presupuesto de RAM ni filosofía.
+
+Expectativas clave:
+- CPU-only por defecto (GGUF/llama-cpp) con RAM ≤ 12 GB y máximo 2 LLMs concurrentes.
+- Sin IPs hardcodeadas: toda conectividad externa se define por variables de entorno.
+- Auditoría end-to-end: logs firmados (SHA-256/HMAC), health y métricas, supply-chain firmado (Cosign+SBOM).
+- Degradación elegante: ante fallos, el sistema reduce calidad pero no se detiene.
+
+## Cómo usar este documento
+- Si operas o auditas: lee “Quickstart y validación operativa” y “Auditoría y seguridad”.
+- Si desarrollas: revisa “Estado actual (implementado vs pendiente)”, “Mapa de archivos clave” y “Novedades” por versión.
+- Si configuras modelos: consulta “Variables de entorno y política sin IPs” y `config/models.yaml`.
+
+## Índice
+- [Estado actual (implementado vs pendiente)](#estado-actual-implementado-vs-pendiente)
+- [Quickstart y validación operativa](#quickstart-y-validación-operativa)
+- [Auditoría y seguridad (endpoints, logs, supply-chain)](#auditoría-y-seguridad-endpoints-logs-supply-chain)
+- [Variables de entorno y política sin IPs hardcodeadas](#variables-de-entorno-y-política-sin-ips-hardcodeadas)
+- [Mapa de archivos clave (qué es y dónde está)](#mapa-de-archivos-clave-qué-es-y-dónde-está)
+- [Novedades v2.14 — Unified Wrapper + VisCoder2](#novedades-v214--unified-wrapper--viscoder2)
+- [Novedades v2.16 — Omni-Loop × Phoenix (Skills-as-Services)](#novedades-v216--omni-loop--phoenix-skills-as-services)
+- [Novedades v2.17 — 4 Capas Profesionales](#novedades-v217--4-capas-profesionales)
+- [Novedades v2.18 — TRUE Full-Duplex (Multiprocessing)](#novedades-v218--true-full-duplex-multiprocessing)
+- [Principios de diseño y KPIs](#principios-de-diseño-y-kpis)
+- [Arquitectura del sistema y gestión de memoria](#arquitectura-del-sistema-y-gestión-de-memoria)
+
+---
+
+## Estado actual (implementado vs pendiente)
+
+Implementado (alta prioridad y estable):
+- Unified Model Wrapper (8 backends) con tests en verde y overhead ≤5%.
+- Skills Phoenix (7 skills) con enrutamiento por TRM-Router y MCP v2 con fast-cache.
+- Layers v2.13: I/O (detección emoción), Memoria (RAG/tone), Fluidez (smoothing).
+- Multimodal visión con Qwen3-VL (carga bajo demanda, RAM dinámica).
+- Auditoría: logs SHA-256/HMAC, /health con content negotiation, /metrics Prometheus.
+- DevSecOps: releases firmadas (Cosign), SBOM (Syft), build attestation.
+
+Pendiente/próximo (según roadmap):
+- Omni-Loop completo con skills containerizados y tests E2E.
+- Entrenamiento nocturno LoRA containerizado con swap atómico (scripts/lora_nightly.py).
+- Mejora de batching GGUF bajo carga y afinado del MCP online.
+
+---
+
+## Quickstart y validación operativa
+
+1) Configuración mínima (.env):
+    - OLLAMA_BASE_URL (ej.: http://localhost:11434)
+    - SOLAR_MODEL_NAME y, si aplica, VISCODER2_MODEL_NAME
+    - HOME_ASSISTANT_URL (si usas skills domóticos)
+
+2) Arranque y health:
+    - Levanta el dashboard y comprueba /health y /metrics.
+
+3) Pruebas rápidas:
+    - Ejecuta tests del wrapper y ejemplos en `examples/`.
+
+Observación: los comandos concretos están documentados en README y Makefile; este documento estandariza qué validar y por qué.
+
+---
+
+## Auditoría y seguridad (endpoints, logs, supply-chain)
+- Endpoints de estado: `/health` (HTML/JSON) y `/metrics` (Prometheus).
+- Logs de interacción y voz: JSONL con sidecar SHA-256/HMAC; ver `logs/` y scripts de verificación.
+- Supply-chain: releases firmadas con Cosign y SBOM atestada; ver workflow de release.
+- Contenedores: hardening estricto (no-new-privileges, cap_drop ALL, read-only, redes internas).
+
+---
+
+## Variables de entorno y política sin IPs hardcodeadas
+- Prohibido usar IPs fijas (p.ej., 192.168.x.x) en código y docs operativos.
+- Usa variables como `${OLLAMA_BASE_URL}`, `${HOME_ASSISTANT_URL}`.
+- Valores por defecto seguros deben apuntar a `localhost`.
+
+---
+
+## Mapa de archivos clave (qué es y dónde está)
+- `core/unified_model_wrapper.py`: Abstracción de modelos (8 backends), LangChain Runnable.
+- `core/model_pool.py`: Cache LRU/TTL de modelos con políticas de RAM y prefetch.
+- `core/graph.py`: Orquestación (TRM → MCP → LLM), integración de skills.
+- `core/mcp.py`, `core/trm_classifier.py`, `core/trm_mini.py`: Router y metacontrol con cache semántica.
+- `agents/`: Implementaciones de agentes (expert/tiny/multimodal, TTS, pipelines).
+- `config/models.yaml`, `config/sarai.yaml`: Configuración declarativa de modelos y runtime.
+- `sarai/health_dashboard.py`: `/health` y `/metrics` + templates.
+- `tests/`: Suites unitarias, integración y benchmarks.
+
+---
+
 ## Novedades v2.14 — Unified Wrapper + VisCoder2 (2025-11-01)
 
 Esta actualización mantiene íntegra la filosofía Phoenix/Layer (v2.12–v2.13) y añade una capa de abstracción unificada para modelos (Unified Wrapper) más la integración de un especialista de programación (VisCoder2-7B) vía Ollama, sin romper compatibilidad ni presupuestos de RAM.
@@ -20,7 +115,7 @@ Esta actualización mantiene íntegra la filosofía Phoenix/Layer (v2.12–v2.13
 - .env (mismo servidor Ollama que SOLAR):
 
     ```env
-    OLLAMA_BASE_URL=http://192.168.0.251:11434
+    OLLAMA_BASE_URL=http://<OLLAMA_HOST>:11434
     VISCODER2_MODEL_NAME=hf.co/mradermacher/VisCoder2-7B-GGUF:Q4_K_M
     ```
 
@@ -283,7 +378,7 @@ Input (final) → EmbeddingGemma (300M) → TRM-Router (7M)
       ┌────────────────┬─────────────────────┬────────────────┐
       ↓                ↓                     ↓                ↓
 (α > 0.9)        (β > 0.9)             (Híbrido)        (Multimodal)
-SOLAR            LFM2                  SOLAR              Qwen-Omni
+SOLAR            LFM2                  SOLAR              Qwen-VL
 (n_ctx dinámico) (modulación)          ↓                  (Pre-proceso)
       │                │                LFM2 (Modulación)  ↓
       └────────────────┴─────────────────────↓            (Texto)
@@ -332,14 +427,14 @@ memory:
 | Expert (Long) | SOLAR-10.7B-Instruct-v1.0 | 10.7B | `upstage/SOLAR-10.7B-Instruct-v1.0` | GGUF Q4_K_M | ~6GB (2048) |
 | Tiny Tier | LiquidAI LFM2-1.2B | 1.2B | `LiquidAI/LFM2-1.2B` | GGUF Q4_K_M | ~700MB (2048) |
 | Embeddings | EmbeddingGemma-300M | 300M | `google/embeddinggemma-300m-qat-q4_0-unquantized` | Q4 | ~150MB |
-| Multimodal | Qwen2.5-Omni-7B | 7B | `Qwen/Qwen2.5-Omni-7B` | GGUF Q4_K_M | ~4GB (2048) |
+| Multimodal | Qwen3-VL-4B | 4B | `Qwen/Qwen3-VL-4B` | GGUF Q4_K_M | ~4GB (2048) |
 | TRM-Router | Tiny Recursive Model | 7M | `models/trm_base/` | PyTorch | ~50MB |
 | TRM-Mini | TRM Prefetch | 3.5M | `models/trm_mini/` | PyTorch | ~25MB |
 
 **Archivos GGUF requeridos** (descargar con `huggingface-cli`):
 - `SOLAR-10.7B-Instruct-v1.0-Q4_K_M.gguf`
 - `LFM2-1.2B-Q4_K_M.gguf`
-- `Qwen2.5-Omni-7B-Q4_K_M.gguf`
+- `Qwen3-VL-4B-Q4_K_M.gguf`
 
 **Nota GGUF Context-Aware**: Expert usa el MISMO archivo `.gguf` pero se carga con diferentes `n_ctx` según la longitud del input. Esto ahorra ~1.2GB de RAM vs. tener dos modelos separados.
 

@@ -73,7 +73,7 @@ Modelos: ['solar_short', 'solar_long', 'lfm2', 'qwen3_vl']
 
 **Archivo `.env` existente**:
 ```bash
-OLLAMA_BASE_URL=http://192.168.0.251:11434
+OLLAMA_BASE_URL=http://<OLLAMA_HOST>:11434
 SOLAR_MODEL_NAME=hf.co/fblgit/UNA-SOLAR-10.7B-Instruct-v1.0:Q5_K_M
 ```
 
@@ -209,7 +209,7 @@ response = skill_pipeline.invoke(state["input"])
    - Impacto: Carga al inicio (antes: lazy load causaba latencia)
 
 5. ✅ Hard-coded IPs removed
-   - Antes: Comentarios con `192.168.0.251:11434`
+   - Antes: Comentarios con IP privada fija
    - Ahora: Solo `${OLLAMA_BASE_URL}` + ejemplos dev/prod/docker
    - Impacto: 100% portabilidad
 

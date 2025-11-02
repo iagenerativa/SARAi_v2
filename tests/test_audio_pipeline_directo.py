@@ -11,14 +11,15 @@ import sys
 import time
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 try:
     import pyaudio
     import numpy as np
 except ImportError as e:
-    print(f"❌ Dependencias faltantes: {e}")
-    sys.exit(1)
+    pytest.skip(f"Dependencias de audio faltantes: {e}", allow_module_level=True)
 
 
 def test_audio_pipeline():

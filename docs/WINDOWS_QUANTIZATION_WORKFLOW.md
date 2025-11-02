@@ -179,7 +179,7 @@ scp models\onnx\agi_audio_core_int8.onnx noel@agi1:~/SARAi_v2/models/onnx/
 scp models\onnx\agi_audio_core_int8.onnx.data noel@agi1:~/SARAi_v2/models/onnx/
 
 # Si falla, probar con IP directa
-scp models\onnx\agi_audio_core_int8.onnx.data noel@192.168.1.x:~/SARAi_v2/models/onnx/
+scp models\onnx\agi_audio_core_int8.onnx.data noel@<LAN_IP>:~/SARAi_v2/models/onnx/
 ```
 
 **Progreso de transferencia**:
@@ -479,8 +479,8 @@ sudo systemctl start sshd
 sudo ufw allow 22/tcp
 
 # En Windows, probar con IP directa
-ping 192.168.1.x  # IP de agi1
-scp models\onnx\agi_audio_core_int8.onnx.data noel@192.168.1.x:~/SARAi_v2/models/onnx/
+ping <LAN_IP>  # IP del host agi1
+scp models\onnx\agi_audio_core_int8.onnx.data noel@<LAN_IP>:~/SARAi_v2/models/onnx/
 ```
 
 ### Problema 4: "Tests fallan en Linux post-transferencia"

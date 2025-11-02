@@ -374,7 +374,7 @@ nombre_modelo:
 El wrapper resuelve automáticamente `${VARIABLE}`:
 
 ```yaml
-api_url: "${OLLAMA_BASE_URL}"  # → http://192.168.0.251:11434
+api_url: "${OLLAMA_BASE_URL}"  # → http://<OLLAMA_HOST>:11434
 api_key: "${OPENAI_API_KEY}"   # → sk-...
 model_name: "${SOLAR_MODEL_NAME}"  # → solar-10.7b-q4_k_m
 ```
@@ -614,7 +614,7 @@ print(list_available_models())
 **Solución**:
 ```bash
 # Verificar Ollama
-curl http://192.168.0.251:11434/api/tags
+curl http://<OLLAMA_HOST>:11434/api/tags
 
 # O configurar variable de entorno
 export OLLAMA_BASE_URL="http://localhost:11434"

@@ -223,7 +223,7 @@ llamarketing_long:
 # ============================================================================
 
 # Servidor Ollama
-OLLAMA_BASE_URL=http://192.168.0.251:11434
+OLLAMA_BASE_URL=http://<OLLAMA_HOST>:11434
 
 # Modelo genérico (hard-skills general)
 SOLAR_MODEL_NAME=una-solar-10.7b-instruct-v1.0-q4

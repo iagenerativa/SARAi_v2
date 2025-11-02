@@ -447,7 +447,7 @@ No permite personalización de voz sin fine-tuning.
 
 **Descargar**:
 ```bash
-# Opción 1: Ollama (modelo ya disponible en servidor 192.168.0.251:11434)
+# Opción 1: Ollama (modelo ya disponible en servidor <OLLAMA_HOST>:11434)
 ollama pull hf.co/unsloth/Qwen3-VL-4B-Instruct-GGUF:Q4_K_M
 
 # Opción 2: huggingface-cli
@@ -590,7 +590,7 @@ def get_omni(self, multimodal: bool = False):
 **Proveedor**: Unsloth AI (reconocido, cuantización superior)
 **Repositorio**: `unsloth/Qwen3-VL-4B-Instruct-GGUF`
 **Cuantización recomendada**: Q4_K_M (2.1 GB)
-**Disponible en**: Ollama server de desarrollo (192.168.0.251:11434) ✅
+**Disponible en**: Ollama server de desarrollo (<OLLAMA_HOST>:11434) ✅
 
 ### 🚀 Para SARAi v2.16: Arquitectura Híbrida
 

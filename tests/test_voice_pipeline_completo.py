@@ -13,6 +13,8 @@ import sys
 import time
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 try:
@@ -21,9 +23,10 @@ try:
     import torch
     import onnxruntime as ort
 except ImportError as e:
-    print(f"❌ Dependencias faltantes: {e}")
-    print("   Instalar con: pip install pyaudio numpy torch onnxruntime")
-    sys.exit(1)
+    pytest.skip(
+        f"Dependencias completas de audio faltantes: {e}",
+        allow_module_level=True,
+    )
 
 
 class CompletePipelineVoiceTest:

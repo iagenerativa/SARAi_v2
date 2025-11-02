@@ -376,7 +376,7 @@ services:
   #     - sarai_internal
   #   
   #   environment:
-  #     - HOME_ASSISTANT_URL=${HOME_ASSISTANT_URL:-http://192.168.1.100:8123}
+  #     - HOME_ASSISTANT_URL=${HOME_ASSISTANT_URL:-http://localhost:8123}
   #   
   #   restart: unless-stopped
 

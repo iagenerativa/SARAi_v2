@@ -20,14 +20,15 @@ import wave
 from pathlib import Path
 from typing import Tuple
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 try:
     import pyaudio
     import numpy as np
-except ImportError:
-    print("❌ pyaudio no instalado. Instalar con: pip install pyaudio")
-    sys.exit(1)
+except ImportError as e:
+    pytest.skip(f"Dependencias de voz faltantes: {e}", allow_module_level=True)
 
 
 class QuickVoiceTest:

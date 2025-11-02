@@ -11,13 +11,22 @@ Usa este script para probar directamente con tu voz.
 
 import sys
 import time
-import numpy as np
-import torch
-import onnxruntime as ort
 from pathlib import Path
-import pyaudio
-import wave
 from datetime import datetime
+
+import pytest
+
+try:
+    import numpy as np
+    import torch
+    import onnxruntime as ort
+    import pyaudio
+    import wave
+except ImportError as e:
+    pytest.skip(
+        f"Dependencias de voz en tiempo real faltantes: {e}",
+        allow_module_level=True,
+    )
 
 # Añadir directorio raíz al path para imports
 sys.path.insert(0, str(Path(__file__).parent.parent))

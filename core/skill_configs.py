@@ -8,7 +8,7 @@ NO carga modelos adicionales. Cada skill es un conjunto de:
 - Dominios de expertise
 """
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 import logging
 
 logger = logging.getLogger(__name__)
@@ -26,7 +26,8 @@ class SkillConfig:
         max_tokens: int = 2048,
         top_p: float = 0.9,
         preferred_model: str = "solar",  # "solar" o "lfm2"
-        use_case: str = "general"
+        use_case: str = "general",
+        longtail_patterns: Optional[List[Tuple]] = None,
     ):
         self.name = name
         self.description = description
@@ -37,6 +38,8 @@ class SkillConfig:
         self.top_p = top_p
         self.preferred_model = preferred_model
         self.use_case = use_case
+        # Patrones long-tail (combinaciones de palabras) para routing preciso
+        self.longtail_patterns: List[Tuple] = longtail_patterns or []
     
     def build_prompt(self, user_query: str) -> str:
         """Construye el prompt completo con system + user query"""
@@ -62,7 +65,8 @@ class SkillConfig:
             "max_tokens": self.max_tokens,
             "top_p": self.top_p,
             "preferred_model": self.preferred_model,
-            "use_case": self.use_case
+            "use_case": self.use_case,
+            "longtail_patterns": self.longtail_patterns,
         }
 
 
@@ -92,7 +96,14 @@ Your responses should be:
     max_tokens=3072,
     top_p=0.85,
     preferred_model="viscoder2",  # ✨ Usa VisCoder2 especializado
-    use_case="code_generation"
+    use_case="code_generation",
+    longtail_patterns=[
+        ("código", "python", 3.0),
+        ("función", "implementa", 3.0),
+        ("algoritmo", "código", 3.0),
+        ("debug", "error", 2.5),
+        ("refactoriza", "código", 2.5),
+    ],
 )
 
 DIAGNOSIS_SKILL = SkillConfig(
@@ -118,7 +129,14 @@ Be methodical, precise, and always provide reasoning for your conclusions.""",
     max_tokens=2560,
     top_p=0.9,
     preferred_model="solar",
-    use_case="diagnostic"
+    use_case="diagnostic",
+    longtail_patterns=[
+        ("diagnostica", "problema", 3.0),
+        ("analiza", "error", 3.0),
+        ("fallo", "sistema", 2.5),
+        ("memory leak", 3.0),
+        ("bug", "producción", 2.5),
+    ],
 )
 
 FINANCIAL_SKILL = SkillConfig(
@@ -144,7 +162,14 @@ Always present financial data in structured formats (tables, bullet points).""",
     max_tokens=2048,
     top_p=0.88,
     preferred_model="solar",
-    use_case="financial_analysis"
+    use_case="financial_analysis",
+    longtail_patterns=[
+        ("análisis", "financiero", 3.0),
+        ("roi", "inversión", 3.0),
+        ("presupuesto", "costos", 2.5),
+        ("margen", "beneficio", 2.5),
+        ("flujo", "caja", 2.5),
+    ],
 )
 
 CREATIVE_SKILL = SkillConfig(
@@ -170,7 +195,14 @@ Embrace divergent thinking while maintaining coherence.""",
     max_tokens=3584,
     top_p=0.95,
     preferred_model="lfm2",  # LFM2 mejor para soft/creative
-    use_case="creative_generation"
+    use_case="creative_generation",
+    longtail_patterns=[
+        ("crea", "historia", 3.0),
+        ("escribe", "narrativa", 3.0),
+        ("genera", "ideas", 2.5),
+        ("brainstorm", 2.5),
+        ("innovador", "concepto", 2.5),
+    ],
 )
 
 REASONING_SKILL = SkillConfig(
@@ -196,7 +228,13 @@ Always make your thinking process transparent and verifiable.""",
     max_tokens=2560,
     top_p=0.92,
     preferred_model="solar",
-    use_case="complex_reasoning"
+    use_case="complex_reasoning",
+    longtail_patterns=[
+        ("razonamiento", "lógico", 3.0),
+        ("analiza", "estrategia", 2.5),
+        ("problema", "complejo", 2.5),
+        ("paso", "paso", 2.0),
+    ],
 )
 
 CTO_SKILL = SkillConfig(
@@ -222,7 +260,13 @@ Think at both strategic (vision) and tactical (execution) levels.""",
     max_tokens=2048,
     top_p=0.88,
     preferred_model="solar",
-    use_case="technical_strategy"
+    use_case="technical_strategy",
+    longtail_patterns=[
+        ("arquitectura", "sistema", 3.0),
+        ("roadmap", "técnico", 3.0),
+        ("escalabilidad", "infraestructura", 2.5),
+        ("stack", "tecnológico", 2.5),
+    ],
 )
 
 SRE_SKILL = SkillConfig(
@@ -248,7 +292,46 @@ Focus on operational excellence and continuous improvement.""",
     max_tokens=2048,
     top_p=0.87,
     preferred_model="solar",
-    use_case="sre_operations"
+    use_case="sre_operations",
+    longtail_patterns=[
+        ("kubernetes", "cluster", 3.0),
+        ("monitoring", "alertas", 3.0),
+        ("reliability", "sla", 2.5),
+        ("incident", "postmortem", 2.5),
+    ],
+)
+
+DRAFT_SKILL = SkillConfig(
+    name="draft",
+    description="Generador rápido de borradores iniciales para iteración (Omni-Loop)",
+    system_prompt="""You are a rapid draft generator specialized in creating quick, coherent initial responses.
+
+Your role:
+- Generate concise, well-structured first drafts
+- Focus on clarity over perfection
+- Maintain consistent tone and style
+- Prepare content for refinement in subsequent iterations
+
+Guidelines:
+- Keep responses between 50-150 tokens
+- Use simple, direct language
+- Avoid over-elaboration
+- Create a solid foundation for iteration
+- Prioritize speed and coherence
+
+Remember: This is a DRAFT. Subsequent iterations will refine and improve.""",
+    keywords=["draft", "borrador", "iteración", "refinamiento", "inicial", "sketch"],
+    temperature=0.9,  # Alta creatividad para drafts variados
+    max_tokens=150,   # Limitar longitud (drafts cortos)
+    top_p=0.95,
+    preferred_model="lfm2",  # ✅ LFM2 (tiny) para velocidad
+    use_case="draft_generation",
+    longtail_patterns=[
+        ("draft", "inicial", 3.0),
+        ("borrador", "rápido", 3.0),
+        ("iteración", "primera", 2.5),
+        ("sketch", "idea", 2.5),
+    ],
 )
 
 # Registro de todos los skills
@@ -259,7 +342,8 @@ ALL_SKILLS = {
     "creative": CREATIVE_SKILL,
     "reasoning": REASONING_SKILL,
     "cto": CTO_SKILL,
-    "sre": SRE_SKILL
+    "sre": SRE_SKILL,
+    "draft": DRAFT_SKILL  # ✅ Añadido v2.16 (Omni-Loop optimización)
 }
 
 
@@ -275,79 +359,32 @@ def list_skills() -> List[str]:
 
 def match_skill_by_keywords(query: str) -> Optional[SkillConfig]:
     """
-    Encuentra el skill más apropiado basado en keywords en la query
-    Usa long-tail matching con pesos para mayor precisión
+    Encuentra el skill más apropiado basado en keywords en la query.
+    Usa long-tail matching con pesos para mayor precisión.
+    
+    v2.12+: Consume longtail_patterns directamente de cada SkillConfig.
     """
     query_lower = query.lower()
-    
-    # Long-tail patterns: combinaciones de palabras que son muy específicas
-    # Peso alto = match casi garantizado
-    longtail_patterns = {
-        "programming": [
-            ("código", "python", 3.0),
-            ("función", "implementa", 3.0),
-            ("algoritmo", "código", 3.0),
-            ("debug", "error", 2.5),
-            ("refactoriza", "código", 2.5),
-        ],
-        "diagnosis": [
-            ("diagnostica", "problema", 3.0),
-            ("analiza", "error", 3.0),
-            ("fallo", "sistema", 2.5),
-            ("memory leak", 3.0),  # Frase específica
-            ("bug", "producción", 2.5),
-        ],
-        "financial": [
-            ("análisis", "financiero", 3.0),
-            ("roi", "inversión", 3.0),
-            ("presupuesto", "costos", 2.5),
-            ("margen", "beneficio", 2.5),
-            ("flujo", "caja", 2.5),
-        ],
-        "creative": [
-            ("crea", "historia", 3.0),
-            ("escribe", "narrativa", 3.0),
-            ("genera", "ideas", 2.5),
-            ("brainstorm", 2.5),
-            ("innovador", "concepto", 2.5),
-        ],
-        "reasoning": [
-            ("razonamiento", "lógico", 3.0),
-            ("analiza", "estrategia", 2.5),
-            ("problema", "complejo", 2.5),
-            ("paso", "paso", 2.0),
-        ],
-        "cto": [
-            ("arquitectura", "sistema", 3.0),
-            ("roadmap", "técnico", 3.0),
-            ("escalabilidad", "infraestructura", 2.5),
-            ("stack", "tecnológico", 2.5),
-        ],
-        "sre": [
-            ("kubernetes", "cluster", 3.0),
-            ("monitoring", "alertas", 3.0),
-            ("reliability", "sla", 2.5),
-            ("incident", "postmortem", 2.5),
-        ],
-    }
     
     # Contar coincidencias por skill con pesos
     scores = {}
     
     # 1. Verificar long-tail patterns primero (alta confianza)
-    for skill_name, patterns in longtail_patterns.items():
+    # Ahora leemos de SkillConfig.longtail_patterns en lugar de diccionario hardcoded
+    for skill_name, skill_config in ALL_SKILLS.items():
         skill_score = 0.0
         
-        for pattern in patterns:
+        # Procesar patterns del SkillConfig
+        for pattern in skill_config.longtail_patterns:
             if len(pattern) == 2:
-                # Patrón de frase única
+                # Patrón de frase única (keyword, weight)
                 phrase, weight = pattern
-                if phrase in query_lower:
+                if phrase.lower() in query_lower:
                     skill_score += weight
             else:
-                # Patrón de combinación
+                # Patrón de combinación (word1, word2, weight)
                 word1, word2, weight = pattern
-                if word1 in query_lower and word2 in query_lower:
+                if word1.lower() in query_lower and word2.lower() in query_lower:
                     skill_score += weight
         
         if skill_score > 0:
@@ -404,6 +441,7 @@ __all__ = [
     "REASONING_SKILL",
     "CTO_SKILL",
     "SRE_SKILL",
+    "DRAFT_SKILL",  # ✅ Añadido v2.16
     "ALL_SKILLS",
     "get_skill",
     "list_skills",

@@ -30,7 +30,7 @@
 ### Setup
 - **Hardware**: CPU Intel i7 (sin GPU)
 - **Iteraciones**: 5 mediciones + 1 warmup
-- **Servidor Ollama**: 192.168.0.251:11434
+- **Servidor Ollama**: <OLLAMA_HOST>:11434
 - **Modelo Ollama**: SOLAR-10.7B Q4_K_M
 - **Modelo Embeddings**: EmbeddingGemma-300M
 
@@ -199,7 +199,7 @@ En **Ollama benchmark**, alta variabilidad:
 - Min-Max range: ~800-1,000 ms
 
 **Causas**:
-- Latencia de red (192.168.0.251)
+- Latencia de red (<OLLAMA_HOST>)
 - Carga del servidor Ollama
 - Inferencia no determinística
 

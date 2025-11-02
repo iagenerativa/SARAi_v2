@@ -35,6 +35,8 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Tuple, Optional
 
+import pytest
+
 # Añadir raíz del proyecto al path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -44,9 +46,10 @@ try:
     import librosa
     from scipy.io import wavfile
 except ImportError as e:
-    print(f"❌ Error importando dependencias de audio: {e}")
-    print("Instalar con: pip install sounddevice numpy librosa scipy")
-    sys.exit(1)
+    pytest.skip(
+        f"Dependencias de audio faltantes: {e}. Instala sounddevice numpy librosa scipy",
+        allow_module_level=True,
+    )
 
 
 class VoiceConversationTester:

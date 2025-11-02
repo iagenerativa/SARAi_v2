@@ -53,7 +53,7 @@ from core.audit import is_safe_mode
 
 HOME_ASSISTANT_URL = os.getenv(
     "HOME_ASSISTANT_URL",
-    "http://192.168.1.100:8123"  # URL local de HA
+    "http://localhost:8123"  # Fallback seguro a loopback
 )
 
 HOME_ASSISTANT_TOKEN = os.getenv(

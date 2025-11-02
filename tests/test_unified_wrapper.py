@@ -161,7 +161,7 @@ def test_registry_resolves_env_vars(mock_config_yaml, monkeypatch):
     registry = ModelRegistry()
     
     # Setear env vars
-    monkeypatch.setenv("OLLAMA_BASE_URL", "http://192.168.0.251:11434")
+    monkeypatch.setenv("OLLAMA_BASE_URL", "http://localhost:11434")
     monkeypatch.setenv("SOLAR_MODEL_NAME", "solar-10.7b-instruct-v1.0")
     
     # Cargar config

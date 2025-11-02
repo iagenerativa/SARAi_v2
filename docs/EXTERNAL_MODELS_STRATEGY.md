@@ -109,7 +109,7 @@ else:
 | **Tamaño** | 10.7B parámetros (~6 GB GGUF) |
 | **Caso de uso** | Razonamiento técnico, explicaciones, análisis |
 | **Status** | ✅ **YA IMPLEMENTADO** en v2.14 |
-| **Backend** | Ollama (192.168.0.251:11434) |
+| **Backend** | Ollama (${OLLAMA_BASE_URL}) |
 
 **✅ RECOMENDACIÓN**: **MANTENER** (ya operacional)
 
@@ -138,7 +138,7 @@ solar_long:
 
 **Variables .env**:
 ```bash
-OLLAMA_BASE_URL=http://192.168.0.251:11434
+OLLAMA_BASE_URL=http://<OLLAMA_HOST>:11434
 SOLAR_MODEL_NAME=una-solar-10.7b-instruct-v1.0-q4
 ```
 
@@ -187,7 +187,7 @@ SOLAR_MODEL_NAME=una-solar-10.7b-instruct-v1.0-q4
 # ============================================
 
 # Servidor Ollama (desarrollo/producción)
-OLLAMA_BASE_URL=http://192.168.0.251:11434
+OLLAMA_BASE_URL=http://<OLLAMA_HOST>:11434
 
 # Modelo Expert (hard-skills)
 SOLAR_MODEL_NAME=una-solar-10.7b-instruct-v1.0-q4
@@ -258,7 +258,7 @@ SOLAR_MODEL_NAME=una-solar-10.7b-instruct-v1.0-q4
 **Archivo .env propuesto**:
 ```bash
 # SARAi v2.14 - Configuración de Modelos Externos
-OLLAMA_BASE_URL=http://192.168.0.251:11434
+OLLAMA_BASE_URL=http://<OLLAMA_HOST>:11434
 SOLAR_MODEL_NAME=una-solar-10.7b-instruct-v1.0-q4
 ```
 

@@ -475,7 +475,7 @@ networks:
 ```bash
 # .env
 AUDIO_ENGINE=omni3b  # o "disabled"
-HOME_ASSISTANT_URL=http://192.168.1.100:8123
+HOME_ASSISTANT_URL=http://localhost:8123
 HOME_ASSISTANT_TOKEN=<long-lived-token>
 SARAI_HMAC_SECRET=<secret-key-32-chars>
 
@@ -756,7 +756,7 @@ nano .env
 
 # Añadir:
 AUDIO_ENGINE=omni3b
-HOME_ASSISTANT_URL=http://192.168.1.100:8123
+HOME_ASSISTANT_URL=http://localhost:8123
 HOME_ASSISTANT_TOKEN=<tu-token>
 SARAI_HMAC_SECRET=$(openssl rand -hex 32)
 ```

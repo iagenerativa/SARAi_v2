@@ -1,0 +1,12 @@
+{
+  "timestamp": "2025-11-02T00:00:00",
+  "model_version": "mcp_v1",
+  "hard_accuracy": 0.87,
+  "soft_accuracy": 0.79,
+  "avg_latency_ms": 124.5,
+  "test_queries": 100,
+  "metadata": {
+    "training_samples": 2000,
+    "phase": 2
+  }
+}

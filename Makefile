@@ -80,6 +80,121 @@ bench:      ## 2) Ejecuta SARAi-Bench (validación de KPIs)
 	$(PYTEST) tests/test_trm_classifier.py tests/test_mcp.py -v -s --tb=short
 	@echo "Nota: SARAi-Bench completo requiere tests/sarai_bench.py (aún no implementado)"
 
+validate:   ## 2b) Validación rápida de subsistemas (config, health, tests, logs, etc.)
+	@echo "🔍 Ejecutando validación rápida de SARAi v2.14..."
+	@if [ ! -f ".venv/bin/python" ]; then \
+		echo "❌ Error: venv no encontrado. Ejecuta 'make install' primero."; \
+		exit 1; \
+	fi
+	@$(PYTHON) scripts/quick_validate.py
+
+validate-section:  ## Valida solo una sección específica (ej: make validate-section SECTION=config)
+	@if [ -z "$(SECTION)" ]; then \
+		echo "❌ Error: Debes especificar SECTION=<config|health|tests|logs|docker|skills|layers>"; \
+		exit 1; \
+	fi
+	@$(PYTHON) scripts/quick_validate.py --section $(SECTION)
+
+audit:      ## 2c) Auditoría completa (15 secciones) con informe en logs/audit_report_YYYY-MM-DD.md
+	@echo "🔍 Ejecutando auditoría completa del sistema..."
+	@bash scripts/run_audit_checklist.sh
+
+audit-section:  ## Audita solo secciones específicas (ej: make audit-section RANGE=1-5)
+	@if [ -z "$(RANGE)" ]; then \
+		echo "❌ Error: Debes especificar RANGE=<inicio-fin> (ej: RANGE=1-5)"; \
+		exit 1; \
+	fi
+	@bash scripts/run_audit_checklist.sh --section $(RANGE)
+
+# ==================== FASE 4: Testing & Validación ====================
+
+test-safe-mode:  ## [FASE 4] Test: Safe Mode se activa con logs corruptos
+	@echo "🧪 Test: Safe Mode Activation con Logs Corruptos"
+	@$(PYTHON) tests/test_safe_mode_activation.py
+
+test-fast-lane:  ## [FASE 4] Test: Fast Lane cumple P99 ≤ 1.5s
+	@echo "🧪 Test: Fast Lane Latency P99 ≤ 1.5s"
+	@$(PYTHON) tests/test_fast_lane_latency.py
+
+test-regression:  ## [FASE 4] Test: Regresión detectada y swap abortado
+	@echo "🧪 Test: Regression Detection & Swap Abort"
+	@$(PYTHON) tests/test_regression_detection.py
+
+test-chaos:  ## [FASE 4] Chaos: Corromper logs intencionalmente
+	@echo "🌪️  Chaos Engineering: Integridad bajo Condiciones Adversas"
+	@$(PYTHON) tests/test_chaos_engineering.py
+
+test-fase4:  ## [FASE 4] Meta-target: Ejecuta TODOS los tests de FASE 4
+	@echo "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "="
+	@echo "🧪 FASE 4: Testing & Validación - Suite Completa"
+	@echo "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "="
+	@echo ""
+	@$(MAKE) test-safe-mode
+	@echo ""
+	@$(MAKE) test-fast-lane
+	@echo ""
+	@$(MAKE) test-regression
+	@echo ""
+	@$(MAKE) test-chaos
+	@echo ""
+	@echo "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "="
+	@echo "✅ FASE 4: Suite de Tests Completada"
+	@echo "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "="
+
+# ==================== FASE 5: Optimización ====================
+
+test-parallel:  ## [FASE 5] Tests en paralelo con pytest-xdist
+	@echo "🚀 Ejecutando tests en paralelo (pytest-xdist)..."
+	@$(PYTEST) tests/ -n auto -v
+
+test-coverage:  ## [FASE 5] Tests con coverage report
+	@echo "📊 Ejecutando tests con coverage..."
+	@$(PYTHON) scripts/analyze_coverage.py --run-tests --html --report
+
+coverage-report:  ## [FASE 5] Generar reporte de coverage (sin ejecutar tests)
+	@echo "📄 Generando reporte de coverage..."
+	@$(PYTHON) scripts/analyze_coverage.py --report --threshold 80
+
+profile-graph:  ## [FASE 5] Profiling de Graph execution
+	@echo "🔬 Profiling Graph execution (60s)..."
+	@$(PYTHON) scripts/profile_performance.py --target graph --duration 60
+
+profile-mcp:  ## [FASE 5] Profiling de MCP decisions
+	@echo "🔬 Profiling MCP decisions..."
+	@$(PYTHON) scripts/profile_performance.py --target mcp
+
+profile-fast-lane:  ## [FASE 5] Profiling de Fast Lane
+	@echo "🔬 Profiling Fast Lane..."
+	@$(PYTHON) scripts/profile_performance.py --target fast-lane
+
+profile-all:  ## [FASE 5] Profiling completo (graph + mcp + fast-lane)
+	@echo "🔬 Profiling completo..."
+	@$(PYTHON) scripts/profile_performance.py --target all
+
+test-fase5:  ## [FASE 5] Meta-target: Parallel tests + Coverage + Profiling
+	@echo "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "="
+	@echo "⚡ FASE 5: Optimización - Suite Completa"
+	@echo "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "="
+	@echo ""
+	@echo "🚀 Paso 1/3: Parallel Testing"
+	@$(MAKE) test-parallel
+	@echo ""
+	@echo "📊 Paso 2/3: Coverage Analysis"
+	@$(MAKE) test-coverage
+	@echo ""
+	@echo "🔬 Paso 3/3: Performance Profiling"
+	@$(MAKE) profile-all
+	@echo ""
+	@echo "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "="
+	@echo "✅ FASE 5: Optimización Completada"
+	@echo "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "="
+
+# =======================================================================
+	@echo "✅ FASE 4: Suite de Tests Completada"
+	@echo "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "=" "="
+
+# =======================================================================
+
 health:     ## 3) Levanta dashboard de salud (http://localhost:8080/health)
 	@echo "🏥 Iniciando health dashboard..."
 	@if [ ! -f ".venv/bin/python" ]; then \

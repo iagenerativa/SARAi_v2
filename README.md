@@ -42,6 +42,44 @@ SARAi combina razonamiento técnico profundo con inteligencia emocional y **voz 
 > Un cambio en YAML no requiere código. Un backend nuevo no rompe pipelines.
 > **El sistema evoluciona sin reescritura: así es como el software debe crecer.**"_
 
+---
+
+## 📚 Índice de Documentación
+
+### 🚀 Inicio Rápido
+- **[QUICKSTART.md](QUICKSTART.md)** - Setup en 5 minutos
+- **[docs/OPERATIONS_QUICK_REFERENCE.md](docs/OPERATIONS_QUICK_REFERENCE.md)** - Comandos esenciales y troubleshooting
+
+### 📖 Documentación Core
+- **[.github/copilot-instructions.md](.github/copilot-instructions.md)** - 🌟 **Guía Maestra** para agentes de IA (implementación, operación, auditoría)
+- **[STATUS_ACTUAL.md](STATUS_ACTUAL.md)** - Estado actual del proyecto (v2.14)
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Arquitectura del sistema
+- **[CHANGELOG.md](CHANGELOG.md)** - Historial de cambios
+
+### 🔧 Implementación y Desarrollo
+- **[docs/UNIFIED_WRAPPER_GUIDE.md](docs/UNIFIED_WRAPPER_GUIDE.md)** - Guía completa del Unified Model Wrapper (8 backends)
+- **[IMPLEMENTATION_v2.12.md](IMPLEMENTATION_v2.12.md)** - Skills Phoenix (7 skills como estrategias de prompting)
+- **[ARCHITECTURE_v2.17.md](ARCHITECTURE_v2.17.md)** - Layer Architecture (I/O, Memory, Fluidity)
+- **[ARCHITECTURE_FULLDUPLEX_v2.18.md](ARCHITECTURE_FULLDUPLEX_v2.18.md)** - TRUE Full-Duplex con Multiprocessing
+
+### 🔍 Auditoría y Validación
+- **[docs/AUDIT_CHECKLIST.md](docs/AUDIT_CHECKLIST.md)** - Checklist de 15 secciones para validación operativa
+- **[docs/BENCHMARK_WRAPPER_OVERHEAD_v2.14.md](docs/BENCHMARK_WRAPPER_OVERHEAD_v2.14.md)** - Metodología y resultados de benchmarking
+
+### 🗺️ Roadmap y Planificación
+- **[ROADMAP_v2.16_OMNI_LOOP.md](ROADMAP_v2.16_OMNI_LOOP.md)** - Omni-Loop × Phoenix (Skills-as-Services)
+- **[ROADMAP_v2.15_SENTIENCE.md](ROADMAP_v2.15_SENTIENCE.md)** - Sentience Layer (LoRA nocturno + auto-corrección)
+
+### 🎙️ Características Especiales
+- **[VOICE_SPANISH_README.md](VOICE_SPANISH_README.md)** - Pipeline de voz multilingüe
+- **[docs/AUDIO_PIPELINE_ARCHITECTURE.md](docs/AUDIO_PIPELINE_ARCHITECTURE.md)** - Arquitectura detallada del pipeline de audio
+
+### 📝 Licencias y Compliance
+- **[LICENSE](LICENSE)** - Licencia MIT
+- **[LICENSE_GUIDE.md](LICENSE_GUIDE.md)** - Guía de cumplimiento de licencias
+
+---
+
 ### 🏛️ Los 8 Pilares de Producción (v2.14)
 
 1. **🔒 Resiliencia**: Sistema Anti-Frágil con fallback en cascada
@@ -825,10 +863,49 @@ Los 6 pilares Ultra-Edge están **especificados** en la arquitectura pero pendie
 - [ ] **Skills GGUF**: Descargar sql, code, math, creative
 
 ### Fase 4: Testing y Validación
-- [ ] **SARAi-Bench v2.7**: Validar KPIs (18.2s P50, 10.8GB RAM)
-- [ ] **Load testing**: Validar batching con múltiples usuarios
-- [ ] **Chaos engineering**: Validar MoE fallback
-- [ ] **Audit testing**: Validar inmutabilidad de logs
+- [x] **Safe Mode Activation**: Validar activación con logs corruptos (`make test-safe-mode`)
+- [x] **Fast Lane P99**: Validar latencia ≤ 1.5s en queries críticas (`make test-fast-lane`)
+- [x] **Regression Detection**: Validar detección y abort de swap (`make test-regression`)
+- [x] **Chaos Engineering**: Validar integridad bajo corrupción intencional (`make test-chaos`)
+
+**Meta-target**: `make test-fase4` ejecuta la suite completa de FASE 4
+
+### Fase 5: Optimización
+- [x] **Parallel Testing**: pytest-xdist para tests en paralelo (`make test-parallel`)
+- [x] **Coverage Analysis**: pytest-cov + reportes HTML (`make test-coverage`)
+- [x] **CPU Profiling**: cProfile para análisis de performance (`make profile-graph`)
+- [x] **Memory Profiling**: memory-profiler para análisis de RAM (`make profile-all`)
+- [x] **pytest.conftest**: Fixtures, markers y configuración compartida
+
+**Meta-target**: `make test-fase5` ejecuta optimización completa
+
+### Fase 6: CI/CD Completo ✅ COMPLETADA
+- [x] **Test Suite Workflow**: Testing continuo en push/PR (`test-suite.yml`)
+- [x] **Code Quality Workflow**: Linting + Security scanning (`code-quality.yml`)
+- [x] **Coverage Integration**: Codecov + HTML reports
+- [x] **Security Scanning**: Bandit (SAST) + Safety (dependencies)
+- [x] **Artifact Management**: Retention 7-90 días según criticidad
+- [x] **Documentation**: Guía completa de CI/CD (`docs/PHASE6_COMPLETE.md`)
+
+**SHA-256**: `5c1e1bfae40746ece7d0284aa1b98cd3ea58aa1224ae24fea72af953b91ba18c`
+
+**Workflows implementados**:
+- `.github/workflows/test-suite.yml` - 5 jobs (security, performance, coverage, audit, summary)
+- `.github/workflows/code-quality.yml` - 5 jobs (lint, security scan, dependency audit, docs validation, summary)
+- `.github/workflows/release.yml` - Release automation (ya existente v2.6)
+- `.github/workflows/ip-check.yml` - IP hardcode detection (ya existente FASE 3)
+
+**Triggers**:
+```bash
+# Push a develop/master → test-suite + code-quality
+git push origin develop
+
+# PR → test-suite + code-quality
+git push origin feature/branch && (create PR)
+
+# Tag → release automation
+git tag v2.14.1 && git push origin v2.14.1
+```
 
 ---
 
